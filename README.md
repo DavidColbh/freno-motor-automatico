@@ -17,6 +17,8 @@ Abre la página publicada con GitHub Pages: `https://TU-USUARIO.github.io/freno-
 | `diagrama_conexion_tradicional.html` | Esquemático en 5 hojas con modo paso a paso |
 | `diagrama_conexion_3d_paso_a_paso.html` | Armado 3D de la protoboard, 156 pasos |
 | `componentes/catalogo_componentes.html` | Catálogo con imagen, función y patas de cada componente (más un SVG por pieza) |
+| `firmware/FrenoMotorAuto/FrenoMotorAuto.ino` | Programa del ATmega328P (canal B), documentado por bloques |
+| `firmware/LEEME_FIRMWARE.md` | Cómo grabar el programa, ajustes, códigos de falla y verificación |
 | `Freno_Motor_Automatico_Documentacion.md` | Dossier técnico completo |
 
 Los archivos HTML se enlazan entre sí, por eso deben estar en la misma carpeta.

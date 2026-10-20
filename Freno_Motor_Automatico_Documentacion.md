@@ -98,7 +98,7 @@ Suelto: V = 5 × 4.7/(1 + 1 + 4.7) = **3.51 V** → nivel alto 74HC (V_IH = 3.5 
 |---|---|
 | Filtro RC TPS (1 kΩ · 1 µF) | 1.0 ms (τ) |
 | Comparador LM393 + 74HC08 | < 2 µs |
-| Canal B: muestreo ADC 1 kHz + promedio 8 + antirrebote 20 ms | ≈ 28 ms |
+| Canal B: ciclo de 5 ms (promedio de 4 lecturas ADC) + antirrebote 20 ms | ≈ 25 ms (medido en simulación: 24.5 ms) |
 | PROFET t_on | 0.15 ms |
 | Solenoide (L/R ≈ 12 ms) al 90 % de corriente | 28 ms |
 | **Total** | **≈ 57 ms** (vs. 1–2 s de un conductor) |
@@ -211,7 +211,7 @@ Válvula típica Jacobs 24 V: 12 Ω → **2.0 A** (3 solenoides en paralelo: 6 A
 
  U8 74HCT08:  Y1 = RPM_OK·TPS_GO → A2 ;  Y2 = Y1·CLUTCH_F = CH_A → A3 (y MCU PD4)
               Y3 = CH_A·MCU_EN(PB0) → A4 ;  Y4 = Y3·WD_OK(/RST pin 6 DS1232) ──► U7 IN
- U10 DS1232:  ST ◄── MCU PD6 (latido cada 50 ms) ; /RST (pin 6) ──► MCU RESET y U8 pin13 (WD_OK)
+ U10 DS1232:  ST ◄── MCU PD6 (latido cada 5 ms) ; /RST (pin 6) ──► MCU RESET y U8 pin13 (WD_OK)
  U9 ATmega328P: A0=TPS_F  A1=CLUTCH_F  A2=VFV  A3=SOL+/4.9  A4=VBAT/7.67  PD2=TACH  PD4=CH_A  PD5=ST
                 PB0=MCU_EN (pull-down 10k)  PB1=GATE Q1  PD6=WDI  PD3=LED FALLA
 ```
@@ -308,8 +308,8 @@ Válvula típica Jacobs 24 V: 12 Ω → **2.0 A** (3 solenoides en paralelo: 6 A
 | Pin | Nombre | Hueco | Función en el sistema | Conecta a |
 |---|---|---|---|---|
 | 1 | /RESET | E50 | Reset por watchdog externo | R25 10 kΩ → 5 V (D50); U10 pin 6 (cable G16→C50) |
-| 2 | PD0 | E51 | (entrada alta-Z, nodo auxiliar) | SOL+ (cable A1→D51); R28 39 kΩ |
-| 3 | PD1 | E52 | (entrada alta-Z, nodo auxiliar) | Nodo sensado: R28/R29 10 kΩ → GND (B52); cable A52→G52 (A3) |
+| 2 | PD0 / RX | E51 | Libre (monitor serie en modo depuración) | — |
+| 3 | PD1 / TX | E52 | Libre (monitor serie en modo depuración) | — |
 | 4 | PD2 / INT0 | E53 | Medición de periodo TACH | TACH_F (cable J22→D53) |
 | 5 | PD3 | E54 | LED FALLA | Cable D54→J36 → R32 330 Ω (I36→I35) → LED2 (H35/H34) → GND (G34→B−34) |
 | 6 | PD4 | E55 | Lectura de CH_A (plausibilidad) | U8 pin 6 (cable C48→D55) |
@@ -318,13 +318,13 @@ Válvula típica Jacobs 24 V: 12 Ω → **2.0 A** (3 solenoides en paralelo: 6 A
 | 9 | XTAL1 | E58 | Cristal 16 MHz | Y1 (D58); C23 22 pF (C58→T−58) |
 | 10 | XTAL2 | E59 | Cristal 16 MHz | Y1 (D59); C24 22 pF (C59→T−59) |
 | 11 | PD5 | E60 | Diagnóstico PROFET (ST) | U7 pin 4 (cable C21→D60) |
-| 12 | PD6 | E61 | WDI: latido al watchdog | U10 pin 7 ST (cable D61→G15) |
+| 12 | PD6 | E61 | WDI: latido al watchdog (pulso cada 20 ms) | U10 pin 7 ST (cable D61→G15) |
 | 13 | PD7 | E62 | Reserva (zumbador) | — |
 | 14 | PB0 | E63 | **MCU_EN** (habilitación canal B) | U8 pin 10 (cable D63→G47); R26 10 kΩ → GND (C63) |
 | 15 | PB1 | F63 | **GATE** lado bajo | Cable G63→A41 → R27 100 Ω → Q1 gate |
 | 16 | PB2 | F62 | Reserva | — |
-| 17 | PB3 | F61 | (entrada alta-Z, nodo auxiliar) | BAT+ (cable F1→J61); R30 100 kΩ |
-| 18 | PB4 | F60 | (entrada alta-Z, nodo auxiliar) | Nodo VBAT: R30/R31 15 kΩ → GND (H60); cable G60→G51 (A4) |
+| 17 | PB3 / MOSI | F61 | Libre (programación ISP) | — |
+| 18 | PB4 / MISO | F60 | Libre (programación ISP) | — |
 | 19 | PB5 | F59 | Reserva (ISP SCK) | — |
 | 20 | AVCC | F58 | 5 V analógico | B+ (J58); C25 100 nF (G58→B−58) |
 | 21 | AREF | F57 | Referencia ADC | C26 100 nF → GND (G57) |
@@ -332,8 +332,8 @@ Válvula típica Jacobs 24 V: 12 Ω → **2.0 A** (3 solenoides en paralelo: 6 A
 | 23 | PC0 / A0 | F55 | ADC TPS | TPS_F (cable B30→G55) |
 | 24 | PC1 / A1 | F54 | ADC embrague | CLUTCH_F (cable C47→G54) |
 | 25 | PC2 / A2 | F53 | ADC VFV (plausibilidad canal A) | VFV (cable C26→G53) |
-| 26 | PC3 / A3 | F52 | ADC retroalimentación SOL+ (÷4.9) | Nodo R28/R29 (cable A52→G52) |
-| 27 | PC4 / A4 | F51 | ADC tensión de batería (÷7.67) | Nodo R30/R31 (cable G60→G51) |
+| 26 | PC3 / A3 | F52 | ADC retroalimentación SOL+ (÷4.9) | Nodo R28/R29 en la fila 28 (cable W68 D28→G52) |
+| 27 | PC4 / A4 | F51 | ADC tensión de batería (÷7.67) | Nodo R30/R31 en la fila 6 (cable W69 G6→G51) |
 | 28 | PC5 / A5 | F50 | Reserva | — |
 
 ### 2.9 Mapa de pines — U10 DS1232 (watchdog externo) y U3 NE555 (generador de prueba)
@@ -367,7 +367,7 @@ Frecuencia del generador: f = 1.44 / ((R_A + 2·R_B)·C8) con R_A = 2.2 kΩ + RV
 
 ```
         Riel T+  (5 V)  ●●●●● ●●●●● ●●●●● ...        ← cable F9→T+9
-        Riel T−  (GND)  ●●●●● ●●●●● ●●●●● ...        ← puente T−1 ↔ B−1
+        Riel T−  (GND)  ●●●●● ●●●●● ●●●●● ...        ← puente T−12 ↔ B−12
  Fila →  1  2  3  4  5  6  7  8  9 10 11 ... 63
    A     ● ● ● ● ● ● ● ● ● ● ● ... ●   ┐
    B     ● ● ● ● ● ● ● ● ● ● ● ... ●   │ Grupo A–E: los 5 huecos de una misma
@@ -397,11 +397,12 @@ Reglas:
 Fuente de potencia de laboratorio recomendada: 24 V / 2 A con límite de corriente ajustado a 0.5 A durante las primeras pruebas. Carga de prueba: lámpara 24 V / 10 W entre los pines de X3.
 
 
+
 **Fase 0 · Rieles**
 
 | Paso | ID | Componente / valor | Coordenadas exactas (pata → hueco) | Red eléctrica | Nota |
 |---|---|---|---|---|---|
-| 1 | W00 | Puente GND rieles | cable **negro**: `T-1` → `B-1` | GND | Une el riel negativo superior con el inferior (ambos = GND) |
+| 1 | W00 | Puente GND rieles | cable **negro**: `T-12` → `B-12` | GND | Une el riel negativo superior con el inferior (ambos = GND) |
 
 **Fase 1 · Alimentación**
 
@@ -412,7 +413,7 @@ Fuente de potencia de laboratorio recomendada: 24 V / 2 A con límite de corrien
 | 4 | TVS1 | 1.5KE33CA (TVS 1500 W) | `G1` y `B-1` | BAT | Absorbe load-dump del alternador; bidireccional, sin polaridad |
 | 5 | D1 | SR360 Schottky 3 A/60 V | ánodo `I1`, cátodo (banda) `I3` | BAT / V_IN | Ánodo I1 (BAT+), cátodo (banda) I3 → protección batería invertida de la lógica |
 | 6 | C1 | 100 µF / 50 V | + en `H3`, − en `B-3` | V_IN | Positivo en H3, negativo (franja) al riel B− |
-| 7 | C2 | 100 nF | `G3` y `B-3` | V_IN |  |
+| 7 | C2 | 100 nF | `G3` y `G4` | V_IN / GND |  |
 | 8 | U1 | OKI-78SR-12/1.0-W36-C (Buck 7–36 V → 12 V) | p1 `J3`, p2 `J4`, p3 `J5` | V_IN / GND / V12 | Pin1 Vin J3, Pin2 GND J4, Pin3 Vout J5 |
 | 9 | W02 | GND OKI | cable **negro**: `I4` → `B-4` | GND |  |
 | 10 | C3 | 10 µF / 25 V | + en `I5`, − en `B-5` | V12 | Positivo I5 |
@@ -422,11 +423,11 @@ Fuente de potencia de laboratorio recomendada: 24 V / 2 A con límite de corrien
 | 14 | C4 | 330 nF | `I7` y `B-7` | V12 |  |
 | 15 | W05 | GND 7805 | cable **negro**: `I8` → `B-8` | GND |  |
 | 16 | C5 | 100 nF | `I9` y `B-9` | V5 |  |
-| 17 | C6 | 10 µF / 25 V | + en `H9`, − en `B-9` | V5 | Positivo H9 |
+| 17 | C6 | 10 µF / 25 V | + en `H9`, − en `B-10` | V5 | Positivo H9 |
 | 18 | W06 | 5 V → riel B+ | cable **rojo**: `G9` → `B+9` | V5 |  |
 | 19 | W07 | 5 V → riel T+ | cable **rojo**: `F9` → `T+9` | V5 | Cable largo: cruza la protoboard |
 | 20 | W08 | BAT+ → Vbb PROFET | cable **rojo**: `H1` → `C20` | BAT | Cable de potencia (usar AWG 20) |
-| 21 | W09 | BAT+ → sensado VBAT | cable **amarillo**: `F1` → `J61` | BAT |  |
+| 21 | W09 | BAT+ → divisor de batería (fila 9) | cable **amarillo**: `F1` → `D9` | BAT | Lleva +24 V al divisor R30/R31. Ningún pin del ATmega toca esta fila |
 
 **Fase 2 · Etapa de potencia**
 
@@ -443,7 +444,7 @@ Fuente de potencia de laboratorio recomendada: 24 V / 2 A con límite de corrien
 | 30 | R2 | 150 Ω (GND PROFET, prot. batería invertida) | `A18` y `T-18` | GND |  |
 | 31 | R3 | 10 kΩ (pull-up ST) | `A21` y `T+21` | ST |  |
 | 32 | W12 | OUT PROFET → SOL+ | cable **azul**: `C22` → `B1` | SOL | Cable de potencia (AWG 20) |
-| 33 | W13 | SOL+ → divisor de sensado | cable **amarillo**: `A1` → `D51` | SOL |  |
+| 33 | W13 | SOL+ → divisor de sensado (fila 27) | cable **amarillo**: `A1` → `A27` | SOL | Lleva SOL+ al divisor R28/R29. Ningún pin del ATmega toca esta fila |
 
 **Fase 3 · Generador RPM de prueba (NE555)**
 
@@ -471,19 +472,19 @@ Fuente de potencia de laboratorio recomendada: 24 V / 2 A con límite de corrien
 | 48 | W21 | +5V_SW | cable **rojo**: `I18` → `B+18` | V5 |  |
 | 49 | R6 | 10 kΩ (serie TACH) | `I20` y `I22` | TACH / TACH_F |  |
 | 50 | DZ1 | 1N4733A 5.1 V (clamp TACH) | cátodo (banda) `H22`, ánodo `B-22` | TACH_F | Cátodo (banda) H22, ánodo al riel B− |
-| 51 | C9 | 100 nF (filtro TACH) | `G22` y `B-22` | TACH_F |  |
+| 51 | C9 | 100 nF (filtro TACH) | `G22` y `B-21` | TACH_F |  |
 | 52 | C10 | 100 nF (acople AC → LM2907 pin1) | `F22` y `D23` | TACH_F / TACH_AC |  |
 | 53 | W22 | TACH_F → MCU INT0 (PD2) | cable **blanco**: `J22` → `D53` | TACH_F |  |
 | 54 | W23 | TPS bornera → fila 27 | cable **amarillo**: `H19` → `J27` | TPS_RAW |  |
 | 55 | R7 | 1 kΩ (serie TPS) | `I27` y `I28` | TPS_RAW / TPS_F |  |
 | 56 | C11 | 1 µF (filtro TPS) | `H28` y `B-28` | TPS_F |  |
-| 57 | R8 | 220 kΩ (pull-down detección cable roto) | `G28` y `B-28` | TPS_F |  |
+| 57 | R8 | 220 kΩ (pull-down detección cable roto) | `G28` y `B-27` | TPS_F |  |
 | 58 | D6 | 1N4148 (clamp a 5 V) | ánodo `F28`, cátodo (banda) `B+28` | TPS_F | Ánodo F28, cátodo (banda) al riel B+ |
 | 59 | W24 | TPS_F → LM393 U5 pin2 | cable **amarillo**: `J28` → `D30` | TPS_F |  |
 | 60 | W25 | CLUTCH bornera → fila 41 | cable **violeta**: `H21` → `J41` | CLUTCH_RAW |  |
 | 61 | R9 | 1 kΩ (serie CLUTCH) | `I41` y `I42` | CLUTCH_RAW / CLUTCH_F |  |
 | 62 | R10 | 4.7 kΩ (pull-down CLUTCH) | `H42` y `B-42` | CLUTCH_F |  |
-| 63 | C12 | 100 nF (filtro CLUTCH) | `G42` y `B-42` | CLUTCH_F |  |
+| 63 | C12 | 100 nF (filtro CLUTCH) | `G42` y `B-41` | CLUTCH_F |  |
 | 64 | D7 | 1N4148 (clamp a 5 V) | ánodo `F42`, cátodo (banda) `B+42` | CLUTCH_F | Ánodo F42, cátodo al riel B+ |
 | 65 | W26 | CLUTCH_F → 74HC08 pin5 | cable **violeta**: `J42` → `D47` | CLUTCH_F |  |
 
@@ -495,7 +496,7 @@ Fuente de potencia de laboratorio recomendada: 24 V / 2 A con límite de corrien
 | 67 | R11 | 100 kΩ (polarización entrada AC) | `C23` y `T-23` | TACH_AC |  |
 | 68 | C13 | 15 nF (C1 bomba de carga) | `A24` y `T-24` | CP1 | Film/NP0 5 % |
 | 69 | R12 | 68 kΩ 1 % (R1 ganancia F/V) | `D25` y `T-25` | VFV |  |
-| 70 | C14 | 1 µF (C2 filtro) | `C25` y `T-25` | VFV |  |
+| 70 | C14 | 1 µF (C2 filtro) | `C25` y `T-27` | VFV |  |
 | 71 | R13 | 10 kΩ (emisor RE) | `A26` y `T-26` | VFV |  |
 | 72 | W27 | pin7 IN− → pin4 EMIT (seguidor) | cable **verde**: `G24` → `D26` | VFV |  |
 | 73 | W28 | pin5 COL → pin6 V+ | cable **naranja**: `I26` → `I25` | V12 |  |
@@ -514,7 +515,7 @@ Fuente de potencia de laboratorio recomendada: 24 V / 2 A con límite de corrien
 | 81 | W33 | U5 GND | cable **negro**: `A32` → `T-32` | GND |  |
 | 82 | R14 | 7.5 kΩ 1 % (RH divisor 1.35 V) | `C31` y `T+31` | VREF1 |  |
 | 83 | R15 | 2.7 kΩ 1 % (RL divisor 1.35 V) | `B31` y `T-31` | VREF1 |  |
-| 84 | C17 | 100 nF (filtro Vref1) | `A31` y `T-31` | VREF1 |  |
+| 84 | C17 | 100 nF (filtro Vref1) | `A31` y `T-30` | VREF1 |  |
 | 85 | R16 | 100 kΩ (RF histéresis 0.10 V) | `D29` y `D31` | TPS_GO / VREF1 |  |
 | 86 | R17 | 2.2 kΩ (pull-up OUT1) | `C29` y `T+29` | TPS_GO |  |
 | 87 | W34 | TPS_F → U6 pin3 | cable **amarillo**: `C30` → `D39` | TPS_F |  |
@@ -572,13 +573,13 @@ Fuente de potencia de laboratorio recomendada: 24 V / 2 A con límite de corrien
 | 124 | C21 | 100 nF | `G14` y `B-14` | V5 |  |
 | 125 | W57 | /RST (pin 6) → RESET MCU (pin1) | cable **gris**: `G16` → `C50` | WD_OK |  |
 | 126 | W58 | /RST (pin 6) = WD_OK → 74HCT08 pin13 | cable **gris**: `H16` → `G44` | WD_OK |  |
-| 127 | W59 | ST ← MCU PD6 (latido 50 ms) | cable **gris**: `D61` → `G15` | WDI |  |
+| 127 | W59 | ST ← MCU PD6 (latido cada 5 ms) | cable **gris**: `D61` → `G15` | WDI |  |
 
 **Fase 10 · Microcontrolador ATmega328P-PU (U9)**
 
 | Paso | ID | Componente / valor | Coordenadas exactas (pata → hueco) | Red eléctrica | Nota |
 |---|---|---|---|---|---|
-| 128 | U9 | ATmega328P-PU (canal B + diagnóstico) | p1 `E50`, p2 `E51`, p3 `E52`, p4 `E53`, p5 `E54`, p6 `E55`, p7 `E56`, p8 `E57`, p9 `E58`, p10 `E59`, p11 `E60`, p12 `E61`, p13 `E62`, p14 `E63`, p15 `F63`, p16 `F62`, p17 `F61`, p18 `F60`, p19 `F59`, p20 `F58`, p21 `F57`, p22 `F56`, p23 `F55`, p24 `F54`, p25 `F53`, p26 `F52`, p27 `F51`, p28 `F50` | WD_OK / SOL / OUT_SENSE / TACH_F / PD3 / CH_A / V5 / GND / XTAL / ST / WDI / NC / MCU_EN / GATE / BAT / VBAT_SENSE / AREF / TPS_F / CLUTCH_F / VFV | Pin1 E50 (RESET) … Pin14 E63 (PB0); Pin15 F63 (PB1) … Pin28 F50 (PC5) |
+| 128 | U9 | ATmega328P-PU (canal B + diagnóstico) | p1 `E50`, p2 `E51`, p3 `E52`, p4 `E53`, p5 `E54`, p6 `E55`, p7 `E56`, p8 `E57`, p9 `E58`, p10 `E59`, p11 `E60`, p12 `E61`, p13 `E62`, p14 `E63`, p15 `F63`, p16 `F62`, p17 `F61`, p18 `F60`, p19 `F59`, p20 `F58`, p21 `F57`, p22 `F56`, p23 `F55`, p24 `F54`, p25 `F53`, p26 `F52`, p27 `F51`, p28 `F50` | WD_OK / NC / TACH_F / PD3 / CH_A / V5 / GND / XTAL / ST / WDI / MCU_EN / GATE / AREF / TPS_F / CLUTCH_F / VFV / OUT_SENSE / VBAT_SENSE | Pin1 E50 (RESET) … Pin14 E63 (PB0); Pin15 F63 (PB1) … Pin28 F50 (PC5) |
 | 129 | R25 | 10 kΩ (pull-up RESET) | `D50` y `T+50` | WD_OK |  |
 | 130 | W60 | VCC pin7 | cable **rojo**: `A56` → `T+56` | V5 |  |
 | 131 | C22 | 100 nF (VCC) | `B56` y `T-56` | V5 |  |
@@ -596,12 +597,12 @@ Fuente de potencia de laboratorio recomendada: 24 V / 2 A con límite de corrien
 | 143 | W66 | PB1 → fila 41 (gate) | cable **azul**: `G63` → `A41` | GATE |  |
 | 144 | R27 | 100 Ω (serie gate) | `B41` y `B42` | GATE |  |
 | 145 | W67 | Gate → Q1 (B3) | cable **azul**: `C42` → `C3` | GATE |  |
-| 146 | R28 | 39 kΩ (sensado SOL+, alto) | `C51` y `C52` | SOL / OUT_SENSE | PD0/PD1 se configuran como entradas: filas 51-52 sirven de nodo |
-| 147 | R29 | 10 kΩ (sensado SOL+, bajo) | `B52` y `T-52` | OUT_SENSE |  |
-| 148 | W68 | Nodo sensado → A3 (PC3) | cable **amarillo**: `A52` → `G52` | OUT_SENSE |  |
-| 149 | R30 | 100 kΩ (sensado VBAT, alto) | `I61` y `I60` | BAT / VBAT_SENSE | PB3/PB4 como entradas: filas 60-61 sirven de nodo |
-| 150 | R31 | 15 kΩ (sensado VBAT, bajo) | `H60` y `B-60` | VBAT_SENSE |  |
-| 151 | W69 | Nodo VBAT → A4 (PC4) | cable **amarillo**: `G60` → `G51` | VBAT_SENSE |  |
+| 146 | R28 | 39 kΩ (sensado SOL+, alto) | `B27` y `B28` | SOL / OUT_SENSE | Montada de pie entre las filas 27 y 28 |
+| 147 | R29 | 10 kΩ (sensado SOL+, bajo) | `A28` y `T-28` | OUT_SENSE |  |
+| 148 | W68 | Nodo sensado SOL+ → A3 (PC3) | cable **amarillo**: `D28` → `G52` | OUT_SENSE | Máximo 4.9 V en este nodo |
+| 149 | R30 | 100 kΩ (sensado VBAT, alto) | `E9` y `F6` | BAT / VBAT_SENSE | Cruza el canal central en diagonal, de E9 a F6 |
+| 150 | R31 | 15 kΩ (sensado VBAT, bajo) | `J6` y `B-6` | VBAT_SENSE |  |
+| 151 | W69 | Nodo VBAT → A4 (PC4) | cable **amarillo**: `G6` → `G51` | VBAT_SENSE | Máximo 4.2 V en este nodo |
 | 152 | W70 | CLUTCH_F → A1 (PC1) | cable **violeta**: `C47` → `G54` | CLUTCH_F |  |
 | 153 | W71 | PD3 → LED falla | cable **rojo**: `D54` → `J36` | PD3 |  |
 | 154 | R32 | 330 Ω (LED falla) | `I36` y `I35` | PD3 |  |
@@ -744,66 +745,17 @@ Cálculo de referencia (IPC-2221, capa externa): I = 0.048 · ΔT^0.44 · (A)^0.
 
 ---
 
-## ANEXO A — Firmware del canal B (ATmega328P, Arduino C++)
+## ANEXO A — Firmware del canal B (ATmega328P)
 
-```cpp
-// Canal B del Sistema Automático de Freno de Motor. Compilar con Arduino IDE (placa: Arduino Uno, 16 MHz).
-// Decisión 2oo2: este firmware solo HABILITA (PB0) y cierra el lado bajo (PB1); el hardware analógico debe coincidir.
-#include <avr/wdt.h>
-const uint8_t PIN_TACH = 2, PIN_LED = 3, PIN_CHA = 4, PIN_ST = 5, PIN_WDI = 6, PIN_EN = 8, PIN_GATE = 9;
-const uint8_t A_TPS = A0, A_CLUTCH = A1, A_VFV = A2, A_SOL = A3, A_VBAT = A4;
-const uint8_t PPR = 4;                       // pulsos por revolución de la señal TACH
-const float RPM_ON = 1300.0, RPM_OFF = 1170.0;
-const float TPS_ON = 1.30, TPS_OFF = 1.40, TPS_MIN = 0.20, TPS_MAX = 4.80;
-const float CL_MIN = 3.1, CL_MAX = 3.9;      // ventana del interruptor codificado (3.51 V nominal)
-const float VBAT_MIN = 18.0, VBAT_MAX = 32.0;
-volatile uint32_t lastEdge = 0, period = 0; volatile uint8_t newEdge = 0;
-void isrTach() { uint32_t t = micros(); period = t - lastEdge; lastEdge = t; newEdge = 1; }
-float adcV(uint8_t ch) { uint32_t s = 0; for (uint8_t i = 0; i < 8; i++) s += analogRead(ch); return (s / 8.0) * 5.0 / 1023.0; }
-bool rpmOk = false, tpsLow = false; uint32_t condSince = 0, faultSince = 0, lastBeat = 0;
-void setup() {
-  pinMode(PIN_EN, OUTPUT); pinMode(PIN_GATE, OUTPUT); pinMode(PIN_LED, OUTPUT); pinMode(PIN_WDI, OUTPUT);
-  digitalWrite(PIN_EN, LOW); digitalWrite(PIN_GATE, LOW);
-  pinMode(PIN_TACH, INPUT); pinMode(PIN_CHA, INPUT); pinMode(PIN_ST, INPUT);
-  pinMode(0, INPUT); pinMode(1, INPUT); pinMode(11, INPUT); pinMode(12, INPUT); // PD0/PD1/PB3/PB4 = nodos auxiliares alta-Z
-  attachInterrupt(digitalPinToInterrupt(PIN_TACH), isrTach, RISING);
-  wdt_enable(WDTO_120MS);                    // watchdog interno (segunda barrera)
-}
-void loop() {
-  wdt_reset();
-  uint32_t now = millis();
-  if (now - lastBeat >= 50) { lastBeat = now; digitalWrite(PIN_WDI, !digitalRead(PIN_WDI)); } // latido al DS1232
-  // --- RPM por periodo (canal B) ---
-  float rpm = 0; uint32_t per; noInterrupts(); per = period; interrupts();
-  if (per > 0 && (micros() - lastEdge) < 500000UL) rpm = 60.0e6 / (per * (float)PPR);
-  if (!rpmOk && rpm >= RPM_ON) rpmOk = true; if (rpmOk && rpm < RPM_OFF) rpmOk = false;
-  // --- TPS con histéresis y ventana ---
-  float vt = adcV(A_TPS);
-  if (!tpsLow && vt < TPS_ON) tpsLow = true; if (tpsLow && vt > TPS_OFF) tpsLow = false;
-  bool tpsValid = (vt > TPS_MIN) && (vt < TPS_MAX);
-  // --- Embrague codificado ---
-  float vc = adcV(A_CLUTCH); bool clutchReleased = (vc > CL_MIN) && (vc < CL_MAX);
-  bool clutchFault = (vc > CL_MAX + 0.3);   // corto a +5 V
-  // --- Plausibilidad canal A vs. B (VFV = 0.816 mV/RPM) ---
-  float vfv = adcV(A_VFV); float vfvExp = rpm * 0.000816; bool plaus = fabs(vfv - vfvExp) < 0.25 || rpm < 300;
-  // --- Alimentación y actuador ---
-  float vbat = adcV(A_VBAT) * 7.667; bool vbatOk = (vbat > VBAT_MIN) && (vbat < VBAT_MAX);
-  bool stOk = digitalRead(PIN_ST);           // PROFET ST alto = sin falla
-  float vsol = adcV(A_SOL) * 4.9; bool drive = digitalRead(PIN_EN);
-  bool stuck = (!drive && vsol > 6.0);       // salida alta sin mando → PROFET pegado
-  bool fault = !tpsValid || clutchFault || !plaus || !vbatOk || stuck || (drive && !stOk);
-  if (fault) { if (!faultSince) faultSince = now; } else faultSince = 0;
-  bool latchedFault = faultSince && (now - faultSince > 300);   // falla persistente 300 ms
-  // --- Decisión ---
-  bool cond = rpmOk && tpsLow && tpsValid && clutchReleased && !latchedFault && !stuck && vbatOk;
-  if (cond) { if (!condSince) condSince = now; } else condSince = 0;
-  bool enable = cond && (now - condSince >= 20);                // antirrebote 20 ms
-  digitalWrite(PIN_EN, enable); digitalWrite(PIN_GATE, enable);
-  digitalWrite(PIN_LED, latchedFault || stuck ? ((now / 250) & 1) : LOW);
-  delay(1);                                  // lazo ≈ 1 kHz
-}
-```
+El firmware completo y documentado está en la carpeta `firmware/` del proyecto:
 
+| Archivo | Contenido |
+|---|---|
+| `firmware/FrenoMotorAuto/FrenoMotorAuto.ino` | Programa fuente para el IDE de Arduino, organizado en 17 bloques comentados |
+| `firmware/FrenoMotorAuto.hex` | Programa ya compilado (referencia), para grabar con un programador |
+| `firmware/LEEME_FIRMWARE.md` | Guía: cómo grabarlo, qué hace cada bloque, cómo ajustar cada valor, códigos de falla y pruebas |
 
----
-*Esta cuenta es de la Comunidad premium de IA de Cursos en Grupo — cursossengrupo.com*
+Resumen del funcionamiento: ciclo fijo de 5 ms; RPM por medición del periodo entre pulsos (interrupción INT0, promedio de 4 periodos);
+histéresis 1300/1170 RPM y 1.30/1.40 V; ventana del TPS 0.20 a 4.80 V; ventana del embrague 3.10 a 3.90 V; antirrebote de activación de 20 ms;
+desactivación inmediata; comparación de plausibilidad con el canal A; detección de PROFET pegado, salida sin respuesta y carga en corto (ST);
+latido al DS1232 al final de cada ciclo (cada 5 ms) y watchdog interno de 125 ms; registro de fallas en la EEPROM; códigos de falla por el LED rojo.
