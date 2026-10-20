@@ -210,8 +210,8 @@ Válvula típica Jacobs 24 V: 12 Ω → **2.0 A** (3 solenoides en paralelo: 6 A
  +5V_SW (X2.1) ◄── 5V (alimenta el interruptor de embrague con 1kΩ en serie en el pedal)
 
  U8 74HCT08:  Y1 = RPM_OK·TPS_GO → A2 ;  Y2 = Y1·CLUTCH_F = CH_A → A3 (y MCU PD4)
-              Y3 = CH_A·MCU_EN(PB0) → A4 ;  Y4 = Y3·WD_OK(/RST DS1232) ──► U7 IN
- U10 DS1232:  ST ◄── MCU PD6 (latido cada 50 ms) ; /RST ──► MCU RESET y U8 pin13 (WD_OK)
+              Y3 = CH_A·MCU_EN(PB0) → A4 ;  Y4 = Y3·WD_OK(/RST pin 6 DS1232) ──► U7 IN
+ U10 DS1232:  ST ◄── MCU PD6 (latido cada 50 ms) ; /RST (pin 6) ──► MCU RESET y U8 pin13 (WD_OK)
  U9 ATmega328P: A0=TPS_F  A1=CLUTCH_F  A2=VFV  A3=SOL+/4.9  A4=VBAT/7.67  PD2=TACH  PD4=CH_A  PD5=ST
                 PB0=MCU_EN (pull-down 10k)  PB1=GATE Q1  PD6=WDI  PD3=LED FALLA
 ```
@@ -287,7 +287,7 @@ Válvula típica Jacobs 24 V: 12 Ω → **2.0 A** (3 solenoides en paralelo: 6 A
 | 10 | 3B | F47 | MCU_EN = MCU PB0 (cable D63→G47) |
 | 11 | 4Y = **PROFET_IN** | F46 | U7 pin 2 IN (cable G46→C19) |
 | 12 | 4A | F45 | Pin 8 |
-| 13 | 4B | F44 | WD_OK = /RST DS1232 (cable H17→G44) |
+| 13 | 4B | F44 | WD_OK = /RST (pin 6) DS1232 (cable H16→G44) |
 | 14 | VCC | F43 | 5 V (J43→B+43); C20 100 nF → GND (G43) |
 
 ### 2.7 Mapa de pines — U7 BTS432E2 PROFET y Q1 IRLZ44N
@@ -307,7 +307,7 @@ Válvula típica Jacobs 24 V: 12 Ω → **2.0 A** (3 solenoides en paralelo: 6 A
 
 | Pin | Nombre | Hueco | Función en el sistema | Conecta a |
 |---|---|---|---|---|
-| 1 | /RESET | E50 | Reset por watchdog externo | R25 10 kΩ → 5 V (D50); U10 pin 5 (cable G17→C50) |
+| 1 | /RESET | E50 | Reset por watchdog externo | R25 10 kΩ → 5 V (D50); U10 pin 6 (cable G16→C50) |
 | 2 | PD0 | E51 | (entrada alta-Z, nodo auxiliar) | SOL+ (cable A1→D51); R28 39 kΩ |
 | 3 | PD1 | E52 | (entrada alta-Z, nodo auxiliar) | Nodo sensado: R28/R29 10 kΩ → GND (B52); cable A52→G52 (A3) |
 | 4 | PD2 / INT0 | E53 | Medición de periodo TACH | TACH_F (cable J22→D53) |
@@ -344,8 +344,8 @@ Válvula típica Jacobs 24 V: 12 Ω → **2.0 A** (3 solenoides en paralelo: 6 A
 | U10 | 2 | TD | E15 | GND (A15→T−15) → tiempo de espera 150 ms |
 | U10 | 3 | TOL | E16 | GND (A16→T−16) → tolerancia 5 % |
 | U10 | 4 | GND | E17 | GND (A17→T−17) |
-| U10 | 5 | /RST = **WD_OK** | F17 | MCU pin 1 (cable G17→C50, pull-up R25); U8 pin 13 (cable H17→G44) |
-| U10 | 6 | RST | F16 | Libre |
+| U10 | 5 | RST (activo en alto) | F17 | Libre (no conectar) |
+| U10 | 6 | /RST (activo en bajo, colector abierto) = **WD_OK** | F16 | MCU pin 1 (cable G16→C50, pull-up R25); U8 pin 13 (cable H16→G44) |
 | U10 | 7 | ST (estrobo) | F15 | MCU PD6 (cable D61→G15) |
 | U10 | 8 | VCC | F14 | 5 V (J14→B+14); C21 100 nF (G14→B−14) |
 | U3 NE555 | 1 | GND | E10 | GND (A10→T−10) |
@@ -395,6 +395,7 @@ Reglas:
 ### 3.2 Tabla de ensamble (156 pasos, coordenadas exactas)
 
 Fuente de potencia de laboratorio recomendada: 24 V / 2 A con límite de corriente ajustado a 0.5 A durante las primeras pruebas. Carga de prueba: lámpara 24 V / 10 W entre los pines de X3.
+
 
 **Fase 0 · Rieles**
 
@@ -563,14 +564,14 @@ Fuente de potencia de laboratorio recomendada: 24 V / 2 A con límite de corrien
 
 | Paso | ID | Componente / valor | Coordenadas exactas (pata → hueco) | Red eléctrica | Nota |
 |---|---|---|---|---|---|
-| 119 | U10 | DS1232 (supervisor + watchdog 150 ms) | p1 `E14`, p2 `E15`, p3 `E16`, p4 `E17`, p5 `F17`, p6 `F16`, p7 `F15`, p8 `F14` | NC / GND / WD_OK / WDI / V5 | Pin1 E14 /PBRST (libre), 2 E15 TD, 3 E16 TOL, 4 E17 GND, 5 F17 /RST, 6 F16 RST (libre), 7 F15 ST, 8 F14 VCC |
+| 119 | U10 | DS1232 (supervisor + watchdog 150 ms) | p1 `E14`, p2 `E15`, p3 `E16`, p4 `E17`, p5 `F17`, p6 `F16`, p7 `F15`, p8 `F14` | NC / GND / WD_OK / WDI / V5 | Pin1 E14 /PBRST (libre), 2 E15 TD, 3 E16 TOL, 4 E17 GND, 5 F17 RST activo en alto (libre), 6 F16 /RST activo en bajo = WD_OK, 7 F15 ST, 8 F14 VCC |
 | 120 | W53 | TD → GND (timeout 150 ms) | cable **negro**: `A15` → `T-15` | GND |  |
 | 121 | W54 | TOL → GND (tolerancia 5 %) | cable **negro**: `A16` → `T-16` | GND |  |
 | 122 | W55 | GND | cable **negro**: `A17` → `T-17` | GND |  |
 | 123 | W56 | VCC | cable **rojo**: `J14` → `B+14` | V5 |  |
 | 124 | C21 | 100 nF | `G14` y `B-14` | V5 |  |
-| 125 | W57 | /RST → RESET MCU (pin1) | cable **gris**: `G17` → `C50` | WD_OK |  |
-| 126 | W58 | /RST = WD_OK → 74HC08 pin13 | cable **gris**: `H17` → `G44` | WD_OK |  |
+| 125 | W57 | /RST (pin 6) → RESET MCU (pin1) | cable **gris**: `G16` → `C50` | WD_OK |  |
+| 126 | W58 | /RST (pin 6) = WD_OK → 74HCT08 pin13 | cable **gris**: `H16` → `G44` | WD_OK |  |
 | 127 | W59 | ST ← MCU PD6 (latido 50 ms) | cable **gris**: `D61` → `G15` | WDI |  |
 
 **Fase 10 · Microcontrolador ATmega328P-PU (U9)**
@@ -606,6 +607,7 @@ Fuente de potencia de laboratorio recomendada: 24 V / 2 A con límite de corrien
 | 154 | R32 | 330 Ω (LED falla) | `I36` y `I35` | PD3 |  |
 | 155 | LED2 | LED rojo FALLA / diagnóstico | ánodo (pata larga) `H35`, cátodo `H34` | PD3 / GND | Ánodo H35, cátodo H34 |
 | 156 | W72 | Cátodo LED → GND | cable **negro**: `G34` → `B-34` | GND |  |
+
 ### 3.3 Procedimiento de puesta en marcha y calibración
 
 | # | Prueba | Punto de medida | Valor esperado | Acción si falla |
@@ -619,7 +621,7 @@ Fuente de potencia de laboratorio recomendada: 24 V / 2 A con límite de corrien
 | 7 | Umbral TPS | Simular TPS con potenciómetro 10 kΩ entre 5 V y GND (cursor a J19). Subir desde 0 V: E29 cae a 0 V al pasar **1.40 V**; bajar: vuelve a 5 V al pasar **1.30 V** | Histéresis 0.10 ± 0.02 V | Revisar R16 (100 k) y R17 (2.2 k) |
 | 8 | Fail-safe TPS | Cursor a 0.10 V (corto a masa) / cable J19 desconectado / cursor a 4.9 V | E29 = 0 V en los tres casos (bloqueo) | Revisar U6 y R8 |
 | 9 | Lógica AND | RPM > 1300, TPS < 1.30 V, embrague suelto | E48 (CH_A) = 5 V; F46 = 5 V si MCU vivo | — |
-| 10 | Watchdog | Retirar el cable D61→G15 (latido) | En < 0.25 s: F17 = 0 V, MCU en reset, F46 = 0 V, lámpara apagada | Revisar TD (A15 a GND) |
+| 10 | Watchdog | Retirar el cable D61→G15 (latido) | En < 0.25 s: F16 = 0 V, MCU en reset, F46 = 0 V, lámpara apagada | Revisar TD (A15 a GND) |
 | 11 | Actuador | Condiciones de 9 cumplidas | Lámpara de 24 V encendida, LED1 verde, B21 (ST) = 5 V | Si ST = 0 V: carga abierta/corto |
 | 12 | Tiempo de respuesta | Osciloscopio: canal 1 en J19 (TPS), canal 2 en E1 (SOL+) | Escalón de TPS 2 V→0.5 V → SOL+ sube en 25–35 ms | — |
 | 13 | Embrague pisado | Abrir interruptor con freno activo | Lámpara apaga en < 2 ms (74HCT08) | — |
