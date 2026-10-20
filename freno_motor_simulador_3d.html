@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador 3D · Freno de Motor Automático</title>
+<meta name="description" content="Simulador interactivo 3D (Three.js) del sistema automático de activación de freno de motor para camiones: protoboard, PCB y camión en descenso con señales animadas.">
+<style>
+:root{
+  --bg:#0b0f14;--panel:rgba(14,20,28,.82);--panel2:rgba(20,28,38,.9);--line:rgba(120,160,200,.18);
+  --txt:#e6eef7;--muted:#8fa3b8;--acc:#00e5ff;--acc2:#39ff14;--warn:#ffb020;--bad:#ff3b3b;--ok:#39ff14;
+  --font:"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--mono:"JetBrains Mono",Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);overflow:hidden}
+canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;outline:none}
+#topbar{position:fixed;top:0;left:0;right:0;height:56px;display:flex;align-items:center;gap:10px;padding:0 14px;
+  background:linear-gradient(180deg,rgba(8,12,18,.95),rgba(8,12,18,.6));border-bottom:1px solid var(--line);z-index:20;backdrop-filter:blur(8px)}
+#topbar .brand{font-weight:700;letter-spacing:.5px;font-size:14px;line-height:1.1}
+#topbar .brand small{display:block;color:var(--muted);font-weight:400;font-size:11px}
+.tabs{display:flex;gap:6px;margin-left:12px}
+.tab{background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--txt);padding:8px 14px;border-radius:10px;cursor:pointer;font-size:13px;transition:.15s}
+.tab:hover{background:rgba(0,229,255,.12)}
+.tab.active{background:rgba(0,229,255,.18);border-color:var(--acc);box-shadow:0 0 14px rgba(0,229,255,.35)}
+.spacer{flex:1}
+.btn{background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--txt);padding:7px 12px;border-radius:9px;cursor:pointer;font-size:12.5px;transition:.15s;white-space:nowrap}
+.btn:hover{background:rgba(255,255,255,.12)}
+.btn.on{background:rgba(57,255,20,.16);border-color:var(--ok);color:#dfffd6}
+.btn.danger{background:rgba(255,59,59,.14);border-color:var(--bad)}
+.btn.sel{background:rgba(255,176,32,.2);border-color:var(--warn)}
+.panel{position:fixed;top:66px;width:330px;max-height:calc(100% - 76px);overflow:auto;background:var(--panel);border:1px solid var(--line);
+  border-radius:14px;padding:12px 14px;z-index:15;backdrop-filter:blur(10px);scrollbar-width:thin}
+#left{left:12px}
+#right{right:12px;width:340px}
+.panel h3{margin:4px 0 8px;font-size:12px;letter-spacing:1.2px;color:var(--acc);text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.panel h3::after{content:"";flex:1;height:1px;background:var(--line)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0;font-size:12.5px}
+.row label{color:var(--muted)}
+.val{font-family:var(--mono);font-size:13px;color:#fff}
+.slider{position:relative;margin:4px 0 14px}
+.slider input{width:100%;-webkit-appearance:none;appearance:none;height:6px;border-radius:4px;background:linear-gradient(90deg,#1b2a3a,#2a4a66);outline:none}
+.slider input::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--acc);border:2px solid #052a30;box-shadow:0 0 10px rgba(0,229,255,.6);cursor:pointer}
+.slider input:disabled::-webkit-slider-thumb{background:#5d7489;box-shadow:none}
+.mark{position:absolute;top:-4px;width:2px;height:14px;background:var(--warn);pointer-events:none}
+.mark span{position:absolute;top:14px;left:-22px;font-size:10px;color:var(--warn);white-space:nowrap;font-family:var(--mono)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.sw{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.sw button{flex:1;background:transparent;border:0;color:var(--muted);padding:8px 6px;cursor:pointer;font-size:12px}
+.sw button.on{background:rgba(0,229,255,.18);color:#fff}
+.sw button.onbad{background:rgba(255,59,59,.22);color:#fff}
+#actuator{margin:6px 0 10px;border-radius:14px;padding:14px;text-align:center;border:2px solid #333;background:#121820;transition:.2s}
+#actuator.on{border-color:var(--ok);background:radial-gradient(circle at 50% 30%,rgba(57,255,20,.35),rgba(10,30,10,.9));box-shadow:0 0 30px rgba(57,255,20,.45)}
+#actuator.off{border-color:#7a2a2a;background:radial-gradient(circle at 50% 30%,rgba(255,59,59,.12),#141010)}
+#actuator .big{font-size:22px;font-weight:800;letter-spacing:1px}
+#actuator .sub{font-size:12px;color:var(--muted);margin-top:4px;font-family:var(--mono)}
+.chain{font-size:12px;font-family:var(--mono)}
+.chain .it{display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px dashed rgba(255,255,255,.05)}
+.dot{width:10px;height:10px;border-radius:50%;background:#333;box-shadow:inset 0 0 3px #000;flex:none}
+.dot.on{background:var(--acc);box-shadow:0 0 8px var(--acc)}
+.dot.ok{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.dot.bad{background:var(--bad);box-shadow:0 0 8px var(--bad)}
+.dot.ana{background:var(--warn);box-shadow:0 0 8px var(--warn)}
+.chain .n{flex:1;color:#cfe3f5}
+.chain .v{color:#fff;min-width:70px;text-align:right}
+.tele{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font-size:12px;font-family:var(--mono)}
+.tele b{color:var(--muted);font-weight:400}
+.bar{height:8px;border-radius:4px;background:#1a222c;overflow:hidden;margin-top:3px}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#39ff14,#ffb020,#ff3b3b);width:0}
+#tooltip{position:fixed;pointer-events:none;background:rgba(5,10,16,.92);border:1px solid var(--acc);color:#fff;padding:8px 10px;border-radius:8px;font-size:12px;
+  max-width:300px;z-index:30;display:none;box-shadow:0 0 16px rgba(0,229,255,.3)}
+#tooltip b{color:var(--acc)}
+#tooltip .m{font-family:var(--mono);font-size:11px;color:#cfe3f5;margin-top:4px}
+#legend{position:fixed;left:12px;bottom:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:11.5px;z-index:14;display:flex;gap:14px;flex-wrap:wrap}
+#legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
+#toast{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);background:rgba(10,14,20,.95);border:1px solid var(--warn);color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:40;display:none;max-width:70%}
+#keys{position:fixed;right:12px;bottom:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:11.5px;z-index:14;color:var(--muted);font-family:var(--mono)}
+#alert{position:fixed;top:66px;left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:10px;font-weight:700;letter-spacing:1px;z-index:25;display:none;font-size:14px}
+#alert.red{background:rgba(255,59,59,.85);color:#fff;box-shadow:0 0 30px rgba(255,59,59,.6)}
+#alert.amber{background:rgba(255,176,32,.9);color:#000}
+#help{position:fixed;inset:70px 20% 40px 20%;background:var(--panel2);border:1px solid var(--acc);border-radius:14px;padding:18px 22px;z-index:50;display:none;overflow:auto;font-size:13px;line-height:1.5}
+#help h2{margin:0 0 8px;color:var(--acc)}
+#help code{font-family:var(--mono);background:rgba(255,255,255,.08);padding:1px 5px;border-radius:4px}
+.hidepanel .panel,.hidepanel #legend,.hidepanel #keys{display:none}
+@media (max-width:900px){.panel{width:280px}#right{width:290px}.tab{padding:7px 9px;font-size:12px}#topbar .brand small{display:none}}
+@media (max-width:640px){.panel{top:60px;width:calc(100% - 24px);max-height:42vh}#right{top:auto;bottom:12px;max-height:38vh}#legend,#keys{display:none}}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="topbar">
+  <div class="brand">FRENO DE MOTOR AUTOMÁTICO<small>Simulador 3D · Protoboard · PCB · Camión en descenso</small></div>
+  <div class="tabs">
+    <button class="tab active" data-view="proto">🔌 Protoboard 3D</button>
+    <button class="tab" data-view="pcb">🟩 Placa Madre PCB 3D</button>
+    <button class="tab" data-view="truck">🚛 Camión en tiempo real</button>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn on" id="bAuto" title="Habilita o deshabilita el sistema automático para comparar">SISTEMA AUTO: ON</button>
+  <button class="btn" id="bSound">🔇 Sonido</button>
+  <button class="btn" id="bPanels">◧ Paneles</button>
+  <button class="btn" id="bHelp">?</button>
+</div>
+
+<div class="panel" id="left">
+  <h3>Panel de control del camión</h3>
+  <div class="sw" id="modeSw">
+    <button class="on" data-mode="manual">Manual (deslizadores)</button>
+    <button data-mode="drive">Conducción (física real)</button>
+  </div>
+
+  <div class="row" style="margin-top:10px"><label>RPM del motor</label><span class="val" id="vRpm">900 RPM</span></div>
+  <div class="slider"><input type="range" id="sRpm" min="0" max="2500" step="1" value="900"><div class="mark" style="left:52%"><span>1300 RPM</span></div></div>
+
+  <div class="row"><label>Pedal acelerador (TPS)</label><span class="val" id="vTps">2.20 V</span></div>
+  <div class="slider"><input type="range" id="sTps" min="0" max="5" step="0.01" value="2.2"><div class="mark" style="left:27%"><span>1.35 V</span></div></div>
+  <div class="grid2">
+    <button class="btn" id="bNoise">⚡ Inyectar ruido eléctrico</button>
+    <button class="btn" id="bRelease">Soltar pedal (0.45 V)</button>
+  </div>
+
+  <div class="row" style="margin-top:10px"><label>Pedal de embrague</label></div>
+  <div class="sw" id="clutchSw"><button class="on" data-c="0">SUELTO</button><button data-c="1">PISADO</button></div>
+
+  <h3 style="margin-top:14px">Simulación de fallas (fail-safe)</h3>
+  <div class="grid2" id="faults">
+    <button class="btn sel" data-f="none">Sin falla</button>
+    <button class="btn" data-f="tps_gnd">TPS en corto a GND</button>
+    <button class="btn" data-f="tps_open">Cable TPS roto</button>
+    <button class="btn" data-f="tps_5v">TPS en corto a +5 V</button>
+    <button class="btn" data-f="cl_5v">Embrague corto a +5 V</button>
+    <button class="btn" data-f="cl_open">Cable embrague roto</button>
+    <button class="btn" data-f="mcu_hang">Cuelgue del MCU</button>
+    <button class="btn" data-f="sol_short">Solenoide en corto</button>
+    <button class="btn" data-f="profet_stuck">PROFET pegado (ON)</button>
+    <button class="btn" data-f="tach_lost">Señal TACH perdida</button>
+  </div>
+
+  <div id="driveBox" style="display:none">
+    <h3 style="margin-top:14px">Conducción</h3>
+    <div class="row"><label>Pendiente del descenso</label><span class="val" id="vSlope">6 %</span></div>
+    <div class="slider"><input type="range" id="sSlope" min="0" max="12" step="0.5" value="6"></div>
+    <div class="grid3">
+      <button class="btn" id="bGearDn">⬇ Marcha −</button>
+      <div class="val" style="text-align:center;align-self:center" id="vGear">7ª</div>
+      <button class="btn" id="bGearUp">⬆ Marcha +</button>
+    </div>
+    <div class="grid2" style="margin-top:6px">
+      <button class="btn" id="bAccel">🟢 Acelerar (W)</button>
+      <button class="btn danger" id="bBrake">🔴 Freno de servicio (S)</button>
+    </div>
+    <div class="row" style="margin-top:6px"><label>Carga del camión</label><span class="val" id="vMass">36 t</span></div>
+    <div class="slider"><input type="range" id="sMass" min="12" max="48" step="1" value="36"></div>
+    <button class="btn" id="bReset" style="width:100%">↺ Reiniciar descenso (40 km/h)</button>
+  </div>
+</div>
+
+<div class="panel" id="right">
+  <h3>Actuador · válvula del freno de motor</h3>
+  <div id="actuator" class="off">
+    <div class="big" id="actTxt">INACTIVA</div>
+    <div class="sub" id="actSub">I = 0.00 A · émbolo 0 % · 0 V</div>
+  </div>
+  <div class="tele">
+    <b>Respuesta activación</b><span id="tOn">— ms</span>
+    <b>Respuesta corte</b><span id="tOff">— ms</span>
+    <b>Canal B (MCU) decide en</b><span id="tMcu">— ms</span>
+    <b>Corriente solenoide 90 %</b><span id="tSol">— ms</span>
+  </div>
+
+  <h3 style="margin-top:12px">Cadena de señal en vivo</h3>
+  <div class="chain" id="chain"></div>
+
+  <h3 style="margin-top:12px">Telemetría del camión</h3>
+  <div class="tele">
+    <b>Velocidad</b><span id="tV">— km/h</span>
+    <b>Marcha</b><span id="tG">—</span>
+    <b>RPM motor</b><span id="tR">—</span>
+    <b>Fuerza freno motor</b><span id="tFe">— kN</span>
+    <b>Temp. frenos servicio</b><span id="tT">— °C</span>
+    <b>Eficacia frenos</b><span id="tEf">— %</span>
+  </div>
+  <div class="bar"><i id="barT"></i></div>
+  <div id="msg" style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.4"></div>
+</div>
+
+<div id="alert"></div>
+<div id="tooltip"></div>
+<div id="toast"></div>
+<div id="legend">
+  <span><i style="background:#ff9f1c"></i>Alimentación 24/12/5 V</span>
+  <span><i style="background:#00e5ff"></i>Señal lógica en 1</span>
+  <span><i style="background:#ffd166"></i>Señal analógica (brillo ∝ voltaje)</span>
+  <span><i style="background:#39ff14"></i>Corriente hacia el solenoide</span>
+  <span><i style="background:#ff3b3b"></i>Falla / reset</span>
+  <span>🖱️ arrastrar = rotar · rueda = zoom · clic derecho = desplazar · pasar el cursor = identificar componente</span>
+</div>
+<div id="keys">W acelerar · S frenar · C embrague · ↑/↓ marcha · 1/2/3 vistas · H ayuda</div>
+
+<div id="help">
+  <h2>Cómo usar el simulador</h2>
+  <p><b>Vistas:</b> <code>1</code> Protoboard 3D (830 puntos, 156 pasos del dossier, cada hueco coincide con la tabla de ensamble) · <code>2</code> Placa madre PCB de 2 capas con pistas de cobre que se iluminan al conducir corriente · <code>3</code> Camión de carga pesada descendiendo una montaña con física, sonido de motor y freno de escape.</p>
+  <p><b>Lógica:</b> la válvula se energiza solo si RPM ≥ 1300 <b>y</b> TPS &lt; 1.35 V (histéresis 0.10 V) <b>y</b> embrague suelto, con señales plausibles, canal analógico y canal MCU de acuerdo, watchdog vivo. Prueba las fallas: ninguna debe frenar el camión por error.</p>
+  <p><b>Modo conducción:</b> mantén <code>W</code> para acelerar (TPS sube), <code>S</code> para el freno de servicio (se calienta y pierde eficacia: <i>brake fade</i>), <code>C</code> pisa el embrague, <code>↑/↓</code> cambian de marcha. Apaga "SISTEMA AUTO" para comparar lo que pasa sin el freno de motor automático.</p>
+  <p><b>Colores:</b> naranja = alimentación, cian = señal lógica en 1, ámbar = analógica (brillo proporcional al voltaje), verde = corriente del solenoide, rojo = falla.</p>
+  <p style="color:var(--muted)">Pulsa <code>H</code> o el botón <code>?</code> para cerrar. Comunidad premium de IA de Cursos en Grupo — cursossengrupo.com</p>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* =====================================================================
+   1. MODELO ELÉCTRICO DEL SISTEMA (paso fijo de 1 ms)
+   ===================================================================== */
+const SIM = {
+  mode:'manual', autoEnabled:true,
+  rpm:900, tps:2.2, clutch:false, fault:'none', noise:false, vbat:24.0, ppr:4,
+  t:0, tachPhase:0, pulseFlag:0,
+  vTps:2.2, vClutch:3.51, vfv:0, vfvDisp:0, rpmOk:false, tpsLow:false, tpsOk:true, tpsGo:false, clutchHi:true,
+  chA:false, and1:false, drv3:false, drv:false,
+  mcu:{ rpm:0, lastPulseT:0, tpsF:2.2, rpmOk:false, tpsLow:false, condSince:-1, faultSince:-1, latched:false, en:false, gate:false, alive:true, hangT:0, beatT:0, decideMs:0, stuckDetected:false, lastCond:false, condT0:0 },
+  wdOk:true, wdLastBeat:0,
+  profetOn:false, profetLatchedOff:false, stOk:true, q1On:false, vSol:0, iSol:0, plunger:0,
+  noiseV:0,
+  timing:{ idealPrev:false, t0:-1, t0off:-1, on:null, off:null, mcuMs:null, solMs:null, solT0:-1, pendingOn:false, pendingOff:false },
+  nets:{}, faultLed:false, faultText:''
+};
+const R_SOL = 12, L_SOL = 0.15, I_NOM = () => SIM.vbat / R_SOL;
+
+function measuredTps(){
+  switch (SIM.fault){
+    case 'tps_gnd': return 0.05;
+    case 'tps_open': return 0.0;          // pull-down 220 k lleva la entrada a 0 V
+    case 'tps_5v': return 5.0;            // clamp D6: la entrada se queda en 5.0 V
+    default: return Math.min(5, Math.max(0, SIM.tps + SIM.noiseV));
+  }
+}
+function measuredClutch(){
+  switch (SIM.fault){
+    case 'cl_5v': return 5.0;
+    case 'cl_open': return 0.0;
+    default: return SIM.clutch ? 0.0 : 3.51;
+  }
+}
+function stepSim(dt){ // dt = 0.001 s
+  const S = SIM; S.t += dt;
+  // --- ruido eléctrico inyectado (paseo aleatorio limitado, filtrado por RC 1 kΩ·1 µF) ---
+  if (S.noise){ S.noiseV += (Math.random()-0.5)*0.12; S.noiseV = Math.max(-0.35, Math.min(0.35, S.noiseV*0.985)); } else S.noiseV *= 0.9;
+  // --- señal TACH ---
+  const rpmSig = (S.fault === 'tach_lost') ? 0 : S.rpm;
+  const f = rpmSig * S.ppr / 60;
+  S.pulseFlag = 0;
+  if (f > 0){ const ph = S.tachPhase + f*dt; if (Math.floor(ph) > Math.floor(S.tachPhase)) S.pulseFlag = 1; S.tachPhase = ph; }
+  // --- canal A: LM2907 (V+ = 12 V, R1 = 68 k, C1 = 15 nF, C2 = 1 µF) ---
+  const vfvTarget = 12 * f * 68e3 * 15e-9;
+  S.vfv += (vfvTarget - S.vfv) * (1 - Math.exp(-dt/0.068));
+  S.vfvDisp = S.vfv + (f>0 ? 0.041*Math.sin(2*Math.PI*S.tachPhase) : 0);
+  // comparador RPM (Rs 10k, Rf 470k, Vref2 1.039 V): dispara a 1.061 V, libera a 0.955 V
+  const vinP = S.rpmOk ? S.vfvDisp*0.979 + 0.104 : S.vfvDisp*0.979;
+  S.rpmOk = vinP > 1.039;
+  // comparador TPS (umbral 1.3235 V, histéresis 0.097 V) + ventana
+  S.vTps += (measuredTps() - S.vTps) * (1 - Math.exp(-dt/0.001));
+  if (!S.tpsLow && S.vTps < 1.298) S.tpsLow = true;
+  if (S.tpsLow && S.vTps > 1.395) S.tpsLow = false;
+  S.tpsOk = (S.vTps > 0.200) && (S.vTps < 4.800);
+  S.tpsGo = S.tpsLow && S.tpsOk;
+  // embrague
+  S.vClutch += (measuredClutch() - S.vClutch) * (1 - Math.exp(-dt/0.0001));
+  S.clutchHi = S.vClutch > 2.0; // umbral 74HCT08
+  S.and1 = S.rpmOk && S.tpsGo;
+  S.chA = S.and1 && S.clutchHi;
+  // --- canal B: microcontrolador ---
+  const M = S.mcu;
+  if (S.fault === 'mcu_hang'){ M.alive = false; } else if (!M.alive){ M.alive = true; M.beatT = S.t; M.condSince = -1; M.faultSince = -1; }   // el DS1232 libera /RST y el firmware reinicia
+  if (M.alive){
+    M.beatT = S.t;                                   // latido WDI cada 50 ms (continuo en el modelo)
+    if (S.pulseFlag){ M.rpm = rpmSig; M.lastPulseT = S.t; }
+    if (S.t - M.lastPulseT > 0.5) M.rpm = 0;
+    M.tpsF += (S.vTps - M.tpsF) * (1 - Math.exp(-dt/0.004));  // ADC 1 kHz, promedio de 8
+    if (!M.rpmOk && M.rpm >= 1300) M.rpmOk = true;
+    if (M.rpmOk && M.rpm < 1170) M.rpmOk = false;
+    if (!M.tpsLow && M.tpsF < 1.30) M.tpsLow = true;
+    if (M.tpsLow && M.tpsF > 1.40) M.tpsLow = false;
+    const tpsValid = M.tpsF > 0.20 && M.tpsF < 4.80;
+    const clutchRel = S.vClutch > 3.1 && S.vClutch < 3.9;
+    const clutchFault = S.vClutch > 4.2;
+    const plaus = Math.abs(S.vfv - M.rpm*0.000816) < 0.25 || M.rpm < 300 || (S.t - M.lastPulseT) < 0.3;
+    const vbatOk = S.vbat > 18 && S.vbat < 32;
+    const stuck = (!M.en && S.vSol > 6.0);
+    if (stuck) M.stuckDetected = true;
+    const fault = !tpsValid || clutchFault || !plaus || !vbatOk || stuck || (M.en && !S.stOk);
+    if (fault){ if (M.faultSince < 0) M.faultSince = S.t; } else M.faultSince = -1;
+    M.latched = (M.faultSince >= 0) && (S.t - M.faultSince > 0.3);
+    if (M.stuckDetected && !stuck && S.fault !== 'profet_stuck') M.stuckDetected = false;
+    const cond = S.autoEnabled && M.rpmOk && M.tpsLow && tpsValid && clutchRel && !M.latched && !M.stuckDetected && vbatOk;
+    if (cond){ if (M.condSince < 0) M.condSince = S.t; } else M.condSince = -1;
+    const enNew = cond && (S.t - M.condSince >= 0.020);
+    if (enNew && !M.en && S.timing.t0 >= 0 && S.timing.pendingOn) S.timing.mcuMs = (S.t - S.timing.t0)*1000;
+    M.en = enNew; M.gate = enNew;
+    S.faultLed = M.latched || M.stuckDetected;
+    S.faultText = !tpsValid ? 'TPS fuera de ventana (0.20–4.80 V): cable roto o en corto' :
+      clutchFault ? 'Embrague fuera de ventana: corto a +5 V' : !plaus ? 'Canal A y B no coinciden (plausibilidad)' :
+      stuck || M.stuckDetected ? 'PROFET pegado: Q1 abierto por el MCU' : (M.en && !S.stOk) ? 'PROFET ST = 0: solenoide en corto/abierto' : !vbatOk ? 'Tensión de batería fuera de rango' : '';
+  } else { M.en = false; M.gate = false; M.condSince = -1; S.faultLed = true; S.faultText = 'MCU colgado: watchdog DS1232 lo mantiene en reset'; }
+  // watchdog externo DS1232: 150 ms sin latido → /RST bajo
+  S.wdOk = (S.t - M.beatT) < 0.150;
+  if (!S.wdOk){ M.en = false; M.gate = false; }
+  // --- lógica final (74HCT08) y etapa de potencia ---
+  S.drv3 = S.chA && M.en;
+  S.drv = S.drv3 && S.wdOk;
+  if (S.fault === 'sol_short'){
+    if (S.drv && !S.profetLatchedOff){ S.profetLatchedOff = true; }   // protección de corto: el PROFET se apaga y ST=0
+    if (!S.drv) S.profetLatchedOff = false;
+    S.stOk = !(S.drv);                                                // ST bajo mientras se intente activar con carga en corto
+  } else { S.profetLatchedOff = false; S.stOk = true; }
+  const stuckOn = (S.fault === 'profet_stuck');
+  S.profetOn = (S.drv && !S.profetLatchedOff) || stuckOn;
+  S.q1On = M.gate && S.wdOk;
+  S.vSol = S.profetOn ? S.vbat : 0;                                    // tensión en SOL+ (sensada por A3)
+  const iTarget = (S.profetOn && S.q1On && S.fault !== 'sol_short') ? S.vbat / R_SOL : 0;
+  S.iSol += (iTarget - S.iSol) * (1 - Math.exp(-dt / (L_SOL/R_SOL)));
+  const pTarget = S.iSol > 0.55*I_NOM() ? 1 : (S.iSol > 0.35*I_NOM() ? (S.iSol-0.35*I_NOM())/(0.2*I_NOM()) : 0);
+  S.plunger += (pTarget - S.plunger) * (1 - Math.exp(-dt/0.008));
+  // --- cronómetro de respuesta (condición ideal → corriente 90 %) ---
+  const T = S.timing;
+  const ideal = S.autoEnabled && S.rpm >= 1300 && S.tps < 1.35 && !S.clutch && S.fault === 'none';
+  if (ideal && !T.idealPrev){ T.t0 = S.t; T.pendingOn = true; T.pendingOff = false; T.mcuMs = null; T.solMs = null; T.solT0 = -1; }
+  if (!ideal && T.idealPrev){ T.t0off = S.t; T.pendingOff = true; T.pendingOn = false; }
+  if (T.pendingOn && S.profetOn && S.q1On && T.solT0 < 0) T.solT0 = S.t;
+  if (T.pendingOn && S.iSol >= 0.9*I_NOM()){ T.on = (S.t - T.t0)*1000; T.solMs = T.solT0 >= 0 ? (S.t - T.solT0)*1000 : null; T.pendingOn = false; }
+  if (T.pendingOff && S.iSol <= 0.1*I_NOM()){ T.off = (S.t - T.t0off)*1000; T.pendingOff = false; }
+  T.idealPrev = ideal;
+}
+function updateNets(){
+  const S = SIM, N = S.nets, pulse = (S.rpm > 0 && S.fault !== 'tach_lost') ? ((S.tachPhase % 1) < 0.5 ? 0.95 : 0.3) : 0;
+  const sig = v => ({ level: v ? 1 : 0, kind:'sig' });
+  N.BAT = { level:0.45, kind:'pwr' }; N.V_IN = { level:0.4, kind:'pwr' }; N.V12 = { level:0.4, kind:'pwr' }; N.V5 = { level:0.4, kind:'pwr' };
+  N.GND = { level:0, kind:'pwr' }; N.NC = { level:0, kind:'sig' };
+  N.TACH = { level:pulse, kind:'sig' }; N.TACH_F = N.TACH; N.TACH_AC = N.TACH; N.CP1 = { level:pulse*0.6, kind:'ana' };
+  N.T555 = { level:pulse*0.7, kind:'ana' }; N.T555D = N.T555; N.T555CV = { level:0.2, kind:'ana' };
+  N.VFV = { level:Math.min(1, S.vfvDisp/1.8), kind:'ana' }; N.VFV_S = N.VFV;
+  N.VREF1 = { level:0.35, kind:'ana' }; N.VREF2 = N.VREF1; N.VREF3 = { level:0.15, kind:'ana' }; N.VREF4 = { level:0.8, kind:'ana' };
+  N.TPS_RAW = { level:Math.min(1, S.vTps/4), kind:'ana' }; N.TPS_F = N.TPS_RAW;
+  N.CLUTCH_RAW = { level:Math.min(1, S.vClutch/4), kind:'ana' }; N.CLUTCH_F = N.CLUTCH_RAW;
+  N.RPM_OK = sig(S.rpmOk); N.TPS_GO = sig(S.tpsGo); N.AND1 = sig(S.and1); N.CH_A = sig(S.chA);
+  N.MCU_EN = sig(S.mcu.en); N.DRV3 = sig(S.drv3); N.PROFET_IN = sig(S.drv); N.GATE = sig(S.q1On);
+  N.WD_OK = S.wdOk ? { level:0.7, kind:'sig' } : { level:1, kind:'fault' };
+  N.WDI = { level: S.mcu.alive ? ((S.t*20|0)%2 ? 0.8 : 0.3) : 0, kind:'sig' };
+  N.ST = S.stOk ? { level:0.3, kind:'sig' } : { level:1, kind:'fault' };
+  N.SOL = { level: S.profetOn ? Math.max(0.35, S.iSol/I_NOM()) : 0, kind:'act' };
+  N.SOL_RET = { level: S.iSol > 0.05 ? S.iSol/I_NOM() : 0, kind:'act' };
+  N.OUT_SENSE = { level: S.vSol/30, kind:'ana' }; N.VBAT_SENSE = { level:0.4, kind:'ana' };
+  N.PD3 = S.faultLed ? { level: ((S.t*4|0)%2) ? 1 : 0.2, kind:'fault' } : { level:0, kind:'fault' };
+  N.XTAL = { level:0.35 + 0.15*Math.sin(S.t*200), kind:'ana' }; N.AREF = { level:0.25, kind:'ana' };
+}
+
+/* =====================================================================
+   2. FÍSICA DEL CAMIÓN EN DESCENSO Y AUDIO
+   ===================================================================== */
+const TRUCK = {
+  v: 40/3.6, slope: 6, gear: 6 /* índice 0-based → 7ª */, mass: 36000, brakePedal: 0, accel: false, brakeTemp: 80, eff: 1,
+  fEngine: 0, fService: 0, overspeed: false, dist: 0, wheelAngle: 0, ratios:[12.3,8.5,6.0,4.4,3.2,2.3,1.6,1.15,0.87,0.73], finalDrive:3.7, rWheel:0.5,
+  rpmFree: 650, hiss: 0
+};
+function rpmFromSpeed(){ return TRUCK.v/(2*Math.PI*TRUCK.rWheel)*60*TRUCK.finalDrive*TRUCK.ratios[TRUCK.gear]; }
+function stepTruck(dt){
+  const T = TRUCK, g = 9.81, m = T.mass, theta = Math.atan(T.slope/100);
+  // pedal acelerador en modo conducción
+  const tpsTarget = T.accel ? 4.2 : 0.45;
+  SIM.tps += (tpsTarget - SIM.tps) * (1 - Math.exp(-dt/0.15));
+  // RPM: acoplado a la velocidad salvo con embrague pisado
+  if (SIM.clutch){
+    const free = T.accel ? 2200 : 650;
+    T.rpmFree += (free - T.rpmFree) * (1 - Math.exp(-dt/0.8));
+    SIM.rpm = T.rpmFree;
+  } else { SIM.rpm = Math.max(0, rpmFromSpeed()); T.rpmFree = SIM.rpm; }
+  const rpm = SIM.rpm; T.overspeed = rpm > 2500;
+  // fuerzas
+  const fGrav = m*g*Math.sin(theta);
+  const fRoll = 0.007*m*g*Math.cos(theta);
+  const fDrag = 0.5*1.2*9.0*0.6*T.v*T.v;
+  let fEng = 0, fTract = 0;
+  if (!SIM.clutch && T.v > 0.5){
+    const x = Math.min(rpm, 2600)/2100;
+    if (SIM.plunger > 0.5) fEng = (320000*Math.pow(x,1.5)) / T.v;           // freno de escape activo (≈320 kW a 2100 RPM)
+    else if (!T.accel) fEng = (55000*x) / T.v;                               // fricción interna del motor con pedal suelto
+    if (T.accel) fTract = Math.min(300000/Math.max(T.v,3), 60000) * Math.max(0, 1 - rpm/2400);
+  }
+  // frenos de servicio con desvanecimiento térmico (brake fade)
+  T.eff = T.brakeTemp < 250 ? 1 : Math.max(0.12, 1 - (T.brakeTemp-250)/420);
+  const fServ = T.brakePedal * 210000 * T.eff;
+  const a = (fGrav + fTract - fRoll - fDrag - fEng - fServ) / m;
+  T.v = Math.max(0, T.v + a*dt);
+  T.dist += T.v*dt; T.wheelAngle += T.v*dt / T.rWheel;
+  // térmica de frenos: C ≈ 900 kJ/K, enfriamiento por convección creciente con la velocidad
+  const pBrake = fServ * T.v;
+  const cool = (T.brakeTemp - 30) * (0.004 + 0.0012*T.v);
+  T.brakeTemp += (pBrake/900000 - cool) * dt;
+  T.fEngine = fEng; T.fService = fServ;
+  T.hiss = Math.max(0, T.hiss - dt*2);
+}
+function resetTruck(){ TRUCK.v = 40/3.6; TRUCK.brakeTemp = 80; TRUCK.gear = 6; TRUCK.brakePedal = 0; TRUCK.accel = false; TRUCK.dist = 0; SIM.clutch = false; SIM.tps = 0.45; }
+
+/* ---------------- AUDIO (Web Audio API, síntesis procedural) ---------------- */
+const AUDIO = { ctx:null, on:false, nodes:{} };
+function makeNoise(ctx){
+  const len = ctx.sampleRate*2, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+  for (let i=0;i<len;i++) d[i] = Math.random()*2-1;
+  const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true; return src;
+}
+function initAudio(){
+  if (AUDIO.ctx) return;
+  const ctx = new (window.AudioContext || window.webkitAudioContext)(); AUDIO.ctx = ctx;
+  const master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination);
+  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 6; comp.connect(master);
+  // motor: tres osciladores + filtro
+  const engFilter = ctx.createBiquadFilter(); engFilter.type='lowpass'; engFilter.frequency.value = 400; engFilter.Q.value = 2; engFilter.connect(comp);
+  const engGain = ctx.createGain(); engGain.gain.value = 0.2; engGain.connect(engFilter);
+  const oscs = [];
+  [['sawtooth',1,0.5],['square',0.5,0.35],['sawtooth',2,0.2],['triangle',3,0.15]].forEach(([type,mult,g])=>{
+    const o = ctx.createOscillator(); o.type = type; const gg = ctx.createGain(); gg.gain.value = g; o.connect(gg); gg.connect(engGain); o.start(); oscs.push({o,mult});
+  });
+  // escape / rugido: ruido filtrado
+  const noise = makeNoise(ctx); const exhBP = ctx.createBiquadFilter(); exhBP.type='bandpass'; exhBP.frequency.value = 350; exhBP.Q.value = 0.8;
+  const exhGain = ctx.createGain(); exhGain.gain.value = 0.08; noise.connect(exhBP); exhBP.connect(exhGain); exhGain.connect(comp); noise.start();
+  // freno de escape (Jake): ruido en banda alta modulado en amplitud a la frecuencia de encendido
+  const jakeBP = ctx.createBiquadFilter(); jakeBP.type='bandpass'; jakeBP.frequency.value = 1400; jakeBP.Q.value = 1.2;
+  const jakeAM = ctx.createGain(); jakeAM.gain.value = 0;      // modulado por LFO
+  const jakeGain = ctx.createGain(); jakeGain.gain.value = 0;  // envolvente ON/OFF
+  const lfo = ctx.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 60; const lfoDepth = ctx.createGain(); lfoDepth.gain.value = 0.5;
+  const dc = ctx.createConstantSource(); dc.offset.value = 0.5; lfo.connect(lfoDepth); lfoDepth.connect(jakeAM.gain); dc.connect(jakeAM.gain); lfo.start(); dc.start();
+  noise.connect(jakeBP); jakeBP.connect(jakeAM); jakeAM.connect(jakeGain); jakeGain.connect(comp);
+  const jakeLow = ctx.createBiquadFilter(); jakeLow.type='bandpass'; jakeLow.frequency.value = 180; jakeLow.Q.value = 1.5; const jakeLowG = ctx.createGain(); jakeLowG.gain.value = 0.9;
+  noise.connect(jakeLow); jakeLow.connect(jakeLowG); jakeLowG.connect(jakeAM);
+  // silbido del turbo
+  const turbo = ctx.createOscillator(); turbo.type='sine'; turbo.frequency.value = 2000; const turboG = ctx.createGain(); turboG.gain.value = 0; turbo.connect(turboG); turboG.connect(comp); turbo.start();
+  // siseo de frenos de aire
+  const hissBP = ctx.createBiquadFilter(); hissBP.type='highpass'; hissBP.frequency.value = 3500; const hissG = ctx.createGain(); hissG.gain.value = 0; noise.connect(hissBP); hissBP.connect(hissG); hissG.connect(comp);
+  // viento
+  const windBP = ctx.createBiquadFilter(); windBP.type='lowpass'; windBP.frequency.value = 600; const windG = ctx.createGain(); windG.gain.value = 0; noise.connect(windBP); windBP.connect(windG); windG.connect(comp);
+  AUDIO.nodes = { master, oscs, engFilter, engGain, exhGain, jakeGain, lfo, turbo, turboG, hissG, windG, comp };
+}
+function clickSolenoid(strong){
+  if (!AUDIO.ctx || !AUDIO.on) return;
+  const ctx = AUDIO.ctx, t = ctx.currentTime, src = makeNoise(ctx), hp = ctx.createBiquadFilter(); hp.type='bandpass'; hp.frequency.value = strong ? 2600 : 1800; hp.Q.value = 3;
+  const g = ctx.createGain(); g.gain.setValueAtTime(strong ? 0.9 : 0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + (strong ? 0.06 : 0.04));
+  src.connect(hp); hp.connect(g); g.connect(AUDIO.nodes.comp); src.start(t); src.stop(t + 0.08);
+  const o = ctx.createOscillator(); o.type='sine'; o.frequency.setValueAtTime(strong ? 900 : 600, t); o.frequency.exponentialRampToValueAtTime(120, t+0.05);
+  const og = ctx.createGain(); og.gain.setValueAtTime(0.5, t); og.gain.exponentialRampToValueAtTime(0.001, t+0.07); o.connect(og); og.connect(AUDIO.nodes.comp); o.start(t); o.stop(t+0.08);
+}
+let prevPlungerOn = false, prevBrake = 0;
+function updateAudio(dt){
+  if (!AUDIO.ctx) return;
+  const n = AUDIO.nodes, ctx = AUDIO.ctx, now = ctx.currentTime;
+  n.master.gain.setTargetAtTime(AUDIO.on ? 0.9 : 0, now, 0.05);
+  const rpm = Math.max(SIM.rpm, 0), fire = Math.max(1, rpm/60*3);  // 6 cilindros, 4 tiempos → 3 encendidos por vuelta
+  n.oscs.forEach(({o,mult}) => o.frequency.setTargetAtTime(fire*mult, now, 0.03));
+  const running = rpm > 200;
+  const load = SIM.tps/5;
+  n.engFilter.frequency.setTargetAtTime(running ? 220 + rpm*0.45 + load*600 : 50, now, 0.05);
+  n.engGain.gain.setTargetAtTime(running ? 0.12 + 0.22*load + rpm/2500*0.1 : 0, now, 0.05);
+  n.exhGain.gain.setTargetAtTime(running ? 0.05 + rpm/2500*0.12 + load*0.08 : 0, now, 0.05);
+  n.turbo.frequency.setTargetAtTime(1500 + rpm*1.6, now, 0.1);
+  n.turboG.gain.setTargetAtTime(running ? 0.004 + 0.03*load*(rpm/2500) : 0, now, 0.2);
+  const jakeOn = SIM.plunger > 0.5 && running;
+  n.lfo.frequency.setTargetAtTime(fire, now, 0.02);
+  n.jakeGain.gain.setTargetAtTime(jakeOn ? 0.55 + 0.35*(rpm/2500) : 0, now, 0.04);
+  const plungerOn = SIM.plunger > 0.5;
+  if (plungerOn !== prevPlungerOn){ clickSolenoid(plungerOn); prevPlungerOn = plungerOn; }
+  n.windG.gain.setTargetAtTime(SIM.mode === 'drive' ? Math.min(0.25, TRUCK.v/40*0.25) : 0, now, 0.3);
+  if (SIM.mode === 'drive'){
+    if (TRUCK.brakePedal > 0.1 && prevBrake <= 0.1) TRUCK.hiss = 1.2;
+    if (TRUCK.brakePedal <= 0.1 && prevBrake > 0.1) TRUCK.hiss = 1.0;
+    prevBrake = TRUCK.brakePedal;
+    n.hissG.gain.setTargetAtTime(0.25*Math.min(1, TRUCK.hiss) + (TRUCK.brakePedal > 0.1 ? 0.04 : 0), now, 0.05);
+  } else n.hissG.gain.setTargetAtTime(0, now, 0.1);
+}
+const PB_PARTS=[{"id": "W00", "t": "wire", "label": "Puente GND rieles", "pins": ["T-1", "B-1"], "net": "GND", "color": "negro", "fase": "0 · Rieles", "nota": "Une el riel negativo superior con el inferior (ambos = GND)"}, {"id": "X1", "t": "term", "label": "Bornera BAT (2 pines, paso 2.54)", "pins": ["J1", "J2"], "net": ["BAT", "GND"], "color": "", "fase": "1 · Alimentación", "nota": "J1 = BAT+ (24 V a través de portafusible aéreo 2 A), J2 = BAT−"}, {"id": "W01", "t": "wire", "label": "BAT− a GND", "pins": ["I2", "B-2"], "net": "GND", "color": "negro", "fase": "1 · Alimentación", "nota": ""}, {"id": "TVS1", "t": "tvs", "label": "1.5KE33CA (TVS 1500 W)", "pins": ["G1", "B-1"], "net": "BAT", "color": "", "fase": "1 · Alimentación", "nota": "Absorbe load-dump del alternador; bidireccional, sin polaridad"}, {"id": "D1", "t": "diode", "label": "SR360 Schottky 3 A/60 V", "pins": ["I1", "I3"], "net": ["BAT", "V_IN"], "color": "", "fase": "1 · Alimentación", "nota": "Ánodo I1 (BAT+), cátodo (banda) I3 → protección batería invertida de la lógica"}, {"id": "C1", "t": "ecap", "label": "100 µF / 50 V", "pins": ["H3", "B-3"], "net": "V_IN", "color": "", "fase": "1 · Alimentación", "nota": "Positivo en H3, negativo (franja) al riel B−"}, {"id": "C2", "t": "ccap", "label": "100 nF", "pins": ["G3", "B-3"], "net": "V_IN", "color": "", "fase": "1 · Alimentación", "nota": ""}, {"id": "U1", "t": "sip3", "label": "OKI-78SR-12/1.0-W36-C (Buck 7–36 V → 12 V)", "pins": ["J3", "J4", "J5"], "net": ["V_IN", "GND", "V12"], "color": "", "fase": "1 · Alimentación", "nota": "Pin1 Vin J3, Pin2 GND J4, Pin3 Vout J5"}, {"id": "W02", "t": "wire", "label": "GND OKI", "pins": ["I4", "B-4"], "net": "GND", "color": "negro", "fase": "1 · Alimentación", "nota": ""}, {"id": "C3", "t": "ecap", "label": "10 µF / 25 V", "pins": ["I5", "B-5"], "net": "V12", "color": "", "fase": "1 · Alimentación", "nota": "Positivo I5"}, {"id": "W03", "t": "wire", "label": "12 V → entrada 7805", "pins": ["H5", "H7"], "net": "V12", "color": "rojo", "fase": "1 · Alimentación", "nota": ""}, {"id": "W04", "t": "wire", "label": "12 V → LM2907 pin 6", "pins": ["G5", "J25"], "net": "V12", "color": "naranja", "fase": "1 · Alimentación", "nota": ""}, {"id": "U2", "t": "to220", "label": "L7805CV (5 V)", "pins": ["J7", "J8", "J9"], "net": ["V12", "GND", "V5"], "color": "", "fase": "1 · Alimentación", "nota": "IN J7, GND J8, OUT J9 (cara metálica hacia afuera)"}, {"id": "C4", "t": "ccap", "label": "330 nF", "pins": ["I7", "B-7"], "net": "V12", "color": "", "fase": "1 · Alimentación", "nota": ""}, {"id": "W05", "t": "wire", "label": "GND 7805", "pins": ["I8", "B-8"], "net": "GND", "color": "negro", "fase": "1 · Alimentación", "nota": ""}, {"id": "C5", "t": "ccap", "label": "100 nF", "pins": ["I9", "B-9"], "net": "V5", "color": "", "fase": "1 · Alimentación", "nota": ""}, {"id": "C6", "t": "ecap", "label": "10 µF / 25 V", "pins": ["H9", "B-9"], "net": "V5", "color": "", "fase": "1 · Alimentación", "nota": "Positivo H9"}, {"id": "W06", "t": "wire", "label": "5 V → riel B+", "pins": ["G9", "B+9"], "net": "V5", "color": "rojo", "fase": "1 · Alimentación", "nota": ""}, {"id": "W07", "t": "wire", "label": "5 V → riel T+", "pins": ["F9", "T+9"], "net": "V5", "color": "rojo", "fase": "1 · Alimentación", "nota": "Cable largo: cruza la protoboard"}, {"id": "W08", "t": "wire", "label": "BAT+ → Vbb PROFET", "pins": ["H1", "C20"], "net": "BAT", "color": "rojo", "fase": "1 · Alimentación", "nota": "Cable de potencia (usar AWG 20)"}, {"id": "W09", "t": "wire", "label": "BAT+ → sensado VBAT", "pins": ["F1", "J61"], "net": "BAT", "color": "amarillo", "fase": "1 · Alimentación", "nota": ""}, {"id": "X3", "t": "term", "label": "Bornera SOLENOIDE (2 pines)", "pins": ["E1", "E2"], "net": ["SOL", "SOL_RET"], "color": "", "fase": "2 · Etapa de potencia", "nota": "E1 = SOL+ (válvula freno motor), E2 = SOL−"}, {"id": "D5", "t": "diode", "label": "SB560 Schottky 5 A/60 V (rueda libre)", "pins": ["C2", "C1"], "net": ["SOL_RET", "SOL"], "color": "", "fase": "2 · Etapa de potencia", "nota": "Ánodo C2 (SOL−), cátodo (banda) C1 (SOL+)"}, {"id": "LED1", "t": "led", "label": "LED verde 24 V (resistencia interna) ACTUADOR", "pins": ["D1", "D2"], "net": ["SOL", "SOL_RET"], "color": "verde", "fase": "2 · Etapa de potencia", "nota": "Ánodo (pata larga) D1, cátodo D2"}, {"id": "Q1", "t": "to220", "label": "IRLZ44N (corte lado bajo)", "pins": ["B3", "B4", "B5"], "net": ["GATE", "SOL_RET", "GND"], "color": "", "fase": "2 · Etapa de potencia", "nota": "G B3, D B4, S B5"}, {"id": "R1", "t": "res", "label": "10 kΩ (pull-down gate)", "pins": ["A3", "T-3"], "net": "GATE", "color": "", "fase": "2 · Etapa de potencia", "nota": ""}, {"id": "W10", "t": "wire", "label": "Fuente Q1 → GND", "pins": ["A5", "T-5"], "net": "GND", "color": "negro", "fase": "2 · Etapa de potencia", "nota": ""}, {"id": "W11", "t": "wire", "label": "SOL− → Drenador Q1", "pins": ["A2", "A4"], "net": "SOL_RET", "color": "azul", "fase": "2 · Etapa de potencia", "nota": ""}, {"id": "U7", "t": "to220_5", "label": "BTS432E2 PROFET (adaptador TO-220-5 → 2.54 mm)", "pins": ["B18", "B19", "B20", "B21", "B22"], "net": ["GND", "PROFET_IN", "BAT", "ST", "SOL"], "color": "", "fase": "2 · Etapa de potencia", "nota": "Pin1 GND B18, Pin2 IN B19, Pin3 Vbb B20, Pin4 ST B21, Pin5 OUT B22"}, {"id": "R2", "t": "res", "label": "150 Ω (GND PROFET, prot. batería invertida)", "pins": ["A18", "T-18"], "net": "GND", "color": "", "fase": "2 · Etapa de potencia", "nota": ""}, {"id": "R3", "t": "res", "label": "10 kΩ (pull-up ST)", "pins": ["A21", "T+21"], "net": "ST", "color": "", "fase": "2 · Etapa de potencia", "nota": ""}, {"id": "W12", "t": "wire", "label": "OUT PROFET → SOL+", "pins": ["C22", "B1"], "net": "SOL", "color": "azul", "fase": "2 · Etapa de potencia", "nota": "Cable de potencia (AWG 20)"}, {"id": "W13", "t": "wire", "label": "SOL+ → divisor de sensado", "pins": ["A1", "D51"], "net": "SOL", "color": "amarillo", "fase": "2 · Etapa de potencia", "nota": ""}, {"id": "U3", "t": "dip8", "label": "NE555 (generador de pulsos TACH de laboratorio)", "pins": ["E10", "E11", "E12", "E13", "F13", "F12", "F11", "F10"], "net": ["GND", "T555", "TACH", "V5", "T555CV", "T555", "T555D", "V5"], "color": "", "fase": "3 · Generador RPM de prueba (NE555)", "nota": "Pin1 E10 … Pin4 E13, Pin5 F13 … Pin8 F10"}, {"id": "W14", "t": "wire", "label": "555 pin1 GND", "pins": ["A10", "T-10"], "net": "GND", "color": "negro", "fase": "3 · Generador RPM de prueba (NE555)", "nota": ""}, {"id": "W15", "t": "wire", "label": "555 pin4 RESET → 5 V", "pins": ["A13", "T+13"], "net": "V5", "color": "rojo", "fase": "3 · Generador RPM de prueba (NE555)", "nota": ""}, {"id": "W16", "t": "wire", "label": "555 pin8 VCC → 5 V", "pins": ["J10", "B+10"], "net": "V5", "color": "rojo", "fase": "3 · Generador RPM de prueba (NE555)", "nota": ""}, {"id": "C7", "t": "ccap", "label": "10 nF (pin5 CV)", "pins": ["J13", "B-13"], "net": "T555CV", "color": "", "fase": "3 · Generador RPM de prueba (NE555)", "nota": ""}, {"id": "C8", "t": "ccap", "label": "470 nF (temporización)", "pins": ["C11", "T-11"], "net": "T555", "color": "", "fase": "3 · Generador RPM de prueba (NE555)", "nota": ""}, {"id": "W17", "t": "wire", "label": "pin6 → pin2", "pins": ["G12", "D11"], "net": "T555", "color": "verde", "fase": "3 · Generador RPM de prueba (NE555)", "nota": ""}, {"id": "R4", "t": "res", "label": "4.7 kΩ (RB)", "pins": ["H11", "H12"], "net": ["T555D", "T555"], "color": "", "fase": "3 · Generador RPM de prueba (NE555)", "nota": ""}, {"id": "RV1", "t": "pot", "label": "Potenciómetro 100 kΩ (simula RPM)", "pins": ["B33", "B34", "B35"], "net": ["T555D", "T555D", "V5"], "color": "", "fase": "3 · Generador RPM de prueba (NE555)", "nota": "Pata 1 B33, cursor B34, pata 3 B35"}, {"id": "W18", "t": "wire", "label": "Pot pata1 → cursor", "pins": ["A33", "A34"], "net": "T555D", "color": "verde", "fase": "3 · Generador RPM de prueba (NE555)", "nota": ""}, {"id": "W19", "t": "wire", "label": "Cursor → 555 pin7", "pins": ["C34", "G11"], "net": "T555D", "color": "verde", "fase": "3 · Generador RPM de prueba (NE555)", "nota": ""}, {"id": "R5", "t": "res", "label": "2.2 kΩ (RA mínimo)", "pins": ["C35", "T+35"], "net": "V5", "color": "", "fase": "3 · Generador RPM de prueba (NE555)", "nota": ""}, {"id": "W20", "t": "wire", "label": "Salida 555 → entrada TACH (SOLO LABORATORIO)", "pins": ["D12", "H20"], "net": "TACH", "color": "blanco", "fase": "3 · Generador RPM de prueba (NE555)", "nota": "Retirar al conectar la señal real del camión"}, {"id": "X2", "t": "term", "label": "Bornera SENSORES (4 pines)", "pins": ["J18", "J19", "J20", "J21"], "net": ["V5", "TPS_RAW", "TACH", "CLUTCH_RAW"], "color": "", "fase": "4 · Entradas de sensores", "nota": "J18 = +5V_SW (alimenta interruptor embrague), J19 = TPS, J20 = TACH, J21 = CLUTCH"}, {"id": "W21", "t": "wire", "label": "+5V_SW", "pins": ["I18", "B+18"], "net": "V5", "color": "rojo", "fase": "4 · Entradas de sensores", "nota": ""}, {"id": "R6", "t": "res", "label": "10 kΩ (serie TACH)", "pins": ["I20", "I22"], "net": ["TACH", "TACH_F"], "color": "", "fase": "4 · Entradas de sensores", "nota": ""}, {"id": "DZ1", "t": "zener", "label": "1N4733A 5.1 V (clamp TACH)", "pins": ["H22", "B-22"], "net": "TACH_F", "color": "", "fase": "4 · Entradas de sensores", "nota": "Cátodo (banda) H22, ánodo al riel B−"}, {"id": "C9", "t": "ccap", "label": "100 nF (filtro TACH)", "pins": ["G22", "B-22"], "net": "TACH_F", "color": "", "fase": "4 · Entradas de sensores", "nota": ""}, {"id": "C10", "t": "ccap", "label": "100 nF (acople AC → LM2907 pin1)", "pins": ["F22", "D23"], "net": ["TACH_F", "TACH_AC"], "color": "", "fase": "4 · Entradas de sensores", "nota": ""}, {"id": "W22", "t": "wire", "label": "TACH_F → MCU INT0 (PD2)", "pins": ["J22", "D53"], "net": "TACH_F", "color": "blanco", "fase": "4 · Entradas de sensores", "nota": ""}, {"id": "W23", "t": "wire", "label": "TPS bornera → fila 27", "pins": ["H19", "J27"], "net": "TPS_RAW", "color": "amarillo", "fase": "4 · Entradas de sensores", "nota": ""}, {"id": "R7", "t": "res", "label": "1 kΩ (serie TPS)", "pins": ["I27", "I28"], "net": ["TPS_RAW", "TPS_F"], "color": "", "fase": "4 · Entradas de sensores", "nota": ""}, {"id": "C11", "t": "ccap", "label": "1 µF (filtro TPS)", "pins": ["H28", "B-28"], "net": "TPS_F", "color": "", "fase": "4 · Entradas de sensores", "nota": ""}, {"id": "R8", "t": "res", "label": "220 kΩ (pull-down detección cable roto)", "pins": ["G28", "B-28"], "net": "TPS_F", "color": "", "fase": "4 · Entradas de sensores", "nota": ""}, {"id": "D6", "t": "diode", "label": "1N4148 (clamp a 5 V)", "pins": ["F28", "B+28"], "net": "TPS_F", "color": "", "fase": "4 · Entradas de sensores", "nota": "Ánodo F28, cátodo (banda) al riel B+"}, {"id": "W24", "t": "wire", "label": "TPS_F → LM393 U5 pin2", "pins": ["J28", "D30"], "net": "TPS_F", "color": "amarillo", "fase": "4 · Entradas de sensores", "nota": ""}, {"id": "W25", "t": "wire", "label": "CLUTCH bornera → fila 41", "pins": ["H21", "J41"], "net": "CLUTCH_RAW", "color": "violeta", "fase": "4 · Entradas de sensores", "nota": ""}, {"id": "R9", "t": "res", "label": "1 kΩ (serie CLUTCH)", "pins": ["I41", "I42"], "net": ["CLUTCH_RAW", "CLUTCH_F"], "color": "", "fase": "4 · Entradas de sensores", "nota": ""}, {"id": "R10", "t": "res", "label": "4.7 kΩ (pull-down CLUTCH)", "pins": ["H42", "B-42"], "net": "CLUTCH_F", "color": "", "fase": "4 · Entradas de sensores", "nota": ""}, {"id": "C12", "t": "ccap", "label": "100 nF (filtro CLUTCH)", "pins": ["G42", "B-42"], "net": "CLUTCH_F", "color": "", "fase": "4 · Entradas de sensores", "nota": ""}, {"id": "D7", "t": "diode", "label": "1N4148 (clamp a 5 V)", "pins": ["F42", "B+42"], "net": "CLUTCH_F", "color": "", "fase": "4 · Entradas de sensores", "nota": "Ánodo F42, cátodo al riel B+"}, {"id": "W26", "t": "wire", "label": "CLUTCH_F → 74HC08 pin5", "pins": ["J42", "D47"], "net": "CLUTCH_F", "color": "violeta", "fase": "4 · Entradas de sensores", "nota": ""}, {"id": "U4", "t": "dip8", "label": "LM2907N-8 (frecuencia → voltaje)", "pins": ["E23", "E24", "E25", "E26", "F26", "F25", "F24", "F23"], "net": ["TACH_AC", "CP1", "VFV", "VFV", "V12", "V12", "VFV", "GND"], "color": "", "fase": "5 · Convertidor F/V LM2907N-8", "nota": "Pin1 E23 TACH+, 2 E24 CP1, 3 E25 CP2, 4 E26 EMIT, 5 F26 COL, 6 F25 V+, 7 F24 IN−, 8 F23 GND"}, {"id": "R11", "t": "res", "label": "100 kΩ (polarización entrada AC)", "pins": ["C23", "T-23"], "net": "TACH_AC", "color": "", "fase": "5 · Convertidor F/V LM2907N-8", "nota": ""}, {"id": "C13", "t": "ccap", "label": "15 nF (C1 bomba de carga)", "pins": ["A24", "T-24"], "net": "CP1", "color": "", "fase": "5 · Convertidor F/V LM2907N-8", "nota": "Film/NP0 5 %"}, {"id": "R12", "t": "res", "label": "68 kΩ 1 % (R1 ganancia F/V)", "pins": ["D25", "T-25"], "net": "VFV", "color": "", "fase": "5 · Convertidor F/V LM2907N-8", "nota": ""}, {"id": "C14", "t": "ccap", "label": "1 µF (C2 filtro)", "pins": ["C25", "T-25"], "net": "VFV", "color": "", "fase": "5 · Convertidor F/V LM2907N-8", "nota": ""}, {"id": "R13", "t": "res", "label": "10 kΩ (emisor RE)", "pins": ["A26", "T-26"], "net": "VFV", "color": "", "fase": "5 · Convertidor F/V LM2907N-8", "nota": ""}, {"id": "W27", "t": "wire", "label": "pin7 IN− → pin4 EMIT (seguidor)", "pins": ["G24", "D26"], "net": "VFV", "color": "verde", "fase": "5 · Convertidor F/V LM2907N-8", "nota": ""}, {"id": "W28", "t": "wire", "label": "pin5 COL → pin6 V+", "pins": ["I26", "I25"], "net": "V12", "color": "naranja", "fase": "5 · Convertidor F/V LM2907N-8", "nota": ""}, {"id": "C15", "t": "ccap", "label": "100 nF (desacople V+)", "pins": ["G25", "B-25"], "net": "V12", "color": "", "fase": "5 · Convertidor F/V LM2907N-8", "nota": ""}, {"id": "W29", "t": "wire", "label": "pin8 GND", "pins": ["G23", "B-23"], "net": "GND", "color": "negro", "fase": "5 · Convertidor F/V LM2907N-8", "nota": ""}, {"id": "W30", "t": "wire", "label": "VFV → fila 33 (hacia Rs)", "pins": ["B26", "J33"], "net": "VFV", "color": "amarillo", "fase": "5 · Convertidor F/V LM2907N-8", "nota": ""}, {"id": "W31", "t": "wire", "label": "VFV → MCU A2 (PC2)", "pins": ["C26", "G53"], "net": "VFV", "color": "amarillo", "fase": "5 · Convertidor F/V LM2907N-8", "nota": ""}, {"id": "U5", "t": "dip8", "label": "LM393 U5 (A: TPS 1.35 V ±0.05 · B: RPM 1300)", "pins": ["E29", "E30", "E31", "E32", "F32", "F31", "F30", "F29"], "net": ["TPS_GO", "TPS_F", "VREF1", "GND", "VFV_S", "VREF2", "RPM_OK", "V5"], "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": "Pin1 E29 OUT1, 2 E30 IN1−, 3 E31 IN1+, 4 E32 GND, 5 F32 IN2+, 6 F31 IN2−, 7 F30 OUT2, 8 F29 VCC"}, {"id": "W32", "t": "wire", "label": "U5 VCC", "pins": ["J29", "B+29"], "net": "V5", "color": "rojo", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "C16", "t": "ccap", "label": "100 nF", "pins": ["G29", "B-29"], "net": "V5", "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "W33", "t": "wire", "label": "U5 GND", "pins": ["A32", "T-32"], "net": "GND", "color": "negro", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "R14", "t": "res", "label": "7.5 kΩ 1 % (RH divisor 1.35 V)", "pins": ["C31", "T+31"], "net": "VREF1", "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "R15", "t": "res", "label": "2.7 kΩ 1 % (RL divisor 1.35 V)", "pins": ["B31", "T-31"], "net": "VREF1", "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "C17", "t": "ccap", "label": "100 nF (filtro Vref1)", "pins": ["A31", "T-31"], "net": "VREF1", "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "R16", "t": "res", "label": "100 kΩ (RF histéresis 0.10 V)", "pins": ["D29", "D31"], "net": ["TPS_GO", "VREF1"], "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "R17", "t": "res", "label": "2.2 kΩ (pull-up OUT1)", "pins": ["C29", "T+29"], "net": "TPS_GO", "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "W34", "t": "wire", "label": "TPS_F → U6 pin3", "pins": ["C30", "D39"], "net": "TPS_F", "color": "amarillo", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "W35", "t": "wire", "label": "TPS_F → MCU A0 (PC0)", "pins": ["B30", "G55"], "net": "TPS_F", "color": "amarillo", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "W36", "t": "wire", "label": "TPS_GO → 74HC08 pin2", "pins": ["B29", "D44"], "net": "TPS_GO", "color": "cian", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "R18", "t": "res", "label": "10 kΩ (Rs entrada RPM)", "pins": ["I33", "I32"], "net": ["VFV", "VFV_S"], "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "R19", "t": "res", "label": "470 kΩ (RF histéresis RPM)", "pins": ["H32", "H30"], "net": ["VFV_S", "RPM_OK"], "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "R20", "t": "res", "label": "2.2 kΩ (pull-up OUT2)", "pins": ["G30", "B+30"], "net": "RPM_OK", "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "C18", "t": "ccap", "label": "100 nF (filtro Vref2)", "pins": ["H31", "B-31"], "net": "VREF2", "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "RV2", "t": "trim", "label": "Trimmer 10 kΩ multivuelta (ajuste 1300 RPM)", "pins": ["B6", "B7", "B8"], "net": ["V5", "VREF2", "GND"], "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": "Pata 1 B6, cursor B7, pata 3 B8"}, {"id": "W37", "t": "wire", "label": "Trimmer pata1 → 5 V", "pins": ["A6", "T+6"], "net": "V5", "color": "rojo", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "W38", "t": "wire", "label": "Trimmer pata3 → GND", "pins": ["A8", "T-8"], "net": "GND", "color": "negro", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "W39", "t": "wire", "label": "Cursor trimmer → U5 pin6", "pins": ["C7", "G31"], "net": "VREF2", "color": "amarillo", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "W40", "t": "wire", "label": "RPM_OK → 74HC08 pin1", "pins": ["I30", "D43"], "net": "RPM_OK", "color": "cian", "fase": "6 · Comparador principal LM393 (U5)", "nota": ""}, {"id": "U6", "t": "dip8", "label": "LM393 U6 (ventana 0.20 V < TPS < 4.80 V)", "pins": ["E37", "E38", "E39", "E40", "F40", "F39", "F38", "F37"], "net": ["TPS_GO", "VREF3", "TPS_F", "GND", "VREF4", "TPS_F", "TPS_GO", "V5"], "color": "", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": "Pin1 E37 OUT1, 2 E38 IN1−, 3 E39 IN1+, 4 E40 GND, 5 F40 IN2+, 6 F39 IN2−, 7 F38 OUT2, 8 F37 VCC"}, {"id": "W41", "t": "wire", "label": "U6 VCC", "pins": ["J37", "B+37"], "net": "V5", "color": "rojo", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": ""}, {"id": "C19", "t": "ccap", "label": "100 nF", "pins": ["G37", "B-37"], "net": "V5", "color": "", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": ""}, {"id": "W42", "t": "wire", "label": "U6 GND", "pins": ["A40", "T-40"], "net": "GND", "color": "negro", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": ""}, {"id": "R21", "t": "res", "label": "24 kΩ (ref 0.20 V, alto)", "pins": ["D38", "T+38"], "net": "VREF3", "color": "", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": ""}, {"id": "R22", "t": "res", "label": "1 kΩ (ref 0.20 V, bajo)", "pins": ["C38", "T-38"], "net": "VREF3", "color": "", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": ""}, {"id": "R23", "t": "res", "label": "1 kΩ (ref 4.80 V, alto)", "pins": ["G40", "B+40"], "net": "VREF4", "color": "", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": ""}, {"id": "R24", "t": "res", "label": "24 kΩ (ref 4.80 V, bajo)", "pins": ["H40", "B-40"], "net": "VREF4", "color": "", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": ""}, {"id": "W43", "t": "wire", "label": "TPS_F pin3 → pin6", "pins": ["C39", "G39"], "net": "TPS_F", "color": "amarillo", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": ""}, {"id": "W44", "t": "wire", "label": "OUT1 → nodo TPS_GO (AND cableado)", "pins": ["D37", "A29"], "net": "TPS_GO", "color": "cian", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": ""}, {"id": "W45", "t": "wire", "label": "OUT2 → nodo TPS_GO (AND cableado)", "pins": ["G38", "C37"], "net": "TPS_GO", "color": "cian", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": ""}, {"id": "U8", "t": "dip14", "label": "74HCT08 (4 × AND: RPM·TPS·CLUTCH·MCU·WD)", "pins": ["E43", "E44", "E45", "E46", "E47", "E48", "E49", "F49", "F48", "F47", "F46", "F45", "F44", "F43"], "net": ["RPM_OK", "TPS_GO", "AND1", "AND1", "CLUTCH_F", "CH_A", "GND", "DRV3", "CH_A", "MCU_EN", "PROFET_IN", "DRV3", "WD_OK", "V5"], "color": "", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": "Pin1 E43 … Pin7 E49 (GND), Pin8 F49 … Pin14 F43 (VCC)"}, {"id": "W46", "t": "wire", "label": "U8 VCC", "pins": ["J43", "B+43"], "net": "V5", "color": "rojo", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": ""}, {"id": "C20", "t": "ccap", "label": "100 nF", "pins": ["G43", "B-43"], "net": "V5", "color": "", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": ""}, {"id": "W47", "t": "wire", "label": "U8 GND", "pins": ["A49", "T-49"], "net": "GND", "color": "negro", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": ""}, {"id": "W48", "t": "wire", "label": "Y1 (pin3) → A2 (pin4)", "pins": ["D45", "D46"], "net": "AND1", "color": "cian", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": ""}, {"id": "W49", "t": "wire", "label": "Y2 = CH_A (pin6) → A3 (pin9)", "pins": ["D48", "G48"], "net": "CH_A", "color": "cian", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": ""}, {"id": "W50", "t": "wire", "label": "Y3 (pin8) → A4 (pin12)", "pins": ["G49", "G45"], "net": "DRV3", "color": "cian", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": ""}, {"id": "W51", "t": "wire", "label": "Y4 (pin11) → PROFET IN", "pins": ["G46", "C19"], "net": "PROFET_IN", "color": "cian", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": ""}, {"id": "W52", "t": "wire", "label": "CH_A → MCU PD4 (monitoreo)", "pins": ["C48", "D55"], "net": "CH_A", "color": "cian", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": ""}, {"id": "U10", "t": "dip8", "label": "DS1232 (supervisor + watchdog 150 ms)", "pins": ["E14", "E15", "E16", "E17", "F17", "F16", "F15", "F14"], "net": ["NC", "GND", "GND", "GND", "WD_OK", "NC", "WDI", "V5"], "color": "", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": "Pin1 E14 /PBRST (libre), 2 E15 TD, 3 E16 TOL, 4 E17 GND, 5 F17 /RST, 6 F16 RST (libre), 7 F15 ST, 8 F14 VCC"}, {"id": "W53", "t": "wire", "label": "TD → GND (timeout 150 ms)", "pins": ["A15", "T-15"], "net": "GND", "color": "negro", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": ""}, {"id": "W54", "t": "wire", "label": "TOL → GND (tolerancia 5 %)", "pins": ["A16", "T-16"], "net": "GND", "color": "negro", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": ""}, {"id": "W55", "t": "wire", "label": "GND", "pins": ["A17", "T-17"], "net": "GND", "color": "negro", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": ""}, {"id": "W56", "t": "wire", "label": "VCC", "pins": ["J14", "B+14"], "net": "V5", "color": "rojo", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": ""}, {"id": "C21", "t": "ccap", "label": "100 nF", "pins": ["G14", "B-14"], "net": "V5", "color": "", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": ""}, {"id": "W57", "t": "wire", "label": "/RST → RESET MCU (pin1)", "pins": ["G17", "C50"], "net": "WD_OK", "color": "gris", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": ""}, {"id": "W58", "t": "wire", "label": "/RST = WD_OK → 74HC08 pin13", "pins": ["H17", "G44"], "net": "WD_OK", "color": "gris", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": ""}, {"id": "W59", "t": "wire", "label": "ST ← MCU PD6 (latido 50 ms)", "pins": ["D61", "G15"], "net": "WDI", "color": "gris", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": ""}, {"id": "U9", "t": "dip28", "label": "ATmega328P-PU (canal B + diagnóstico)", "pins": ["E50", "E51", "E52", "E53", "E54", "E55", "E56", "E57", "E58", "E59", "E60", "E61", "E62", "E63", "F63", "F62", "F61", "F60", "F59", "F58", "F57", "F56", "F55", "F54", "F53", "F52", "F51", "F50"], "net": ["WD_OK", "SOL", "OUT_SENSE", "TACH_F", "PD3", "CH_A", "V5", "GND", "XTAL", "XTAL", "ST", "WDI", "NC", "MCU_EN", "GATE", "NC", "BAT", "VBAT_SENSE", "NC", "V5", "AREF", "GND", "TPS_F", "CLUTCH_F", "VFV", "OUT_SENSE", "VBAT_SENSE", "NC"], "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "Pin1 E50 (RESET) … Pin14 E63 (PB0); Pin15 F63 (PB1) … Pin28 F50 (PC5)"}, {"id": "R25", "t": "res", "label": "10 kΩ (pull-up RESET)", "pins": ["D50", "T+50"], "net": "WD_OK", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "W60", "t": "wire", "label": "VCC pin7", "pins": ["A56", "T+56"], "net": "V5", "color": "rojo", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "C22", "t": "ccap", "label": "100 nF (VCC)", "pins": ["B56", "T-56"], "net": "V5", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "W61", "t": "wire", "label": "GND pin8", "pins": ["A57", "T-57"], "net": "GND", "color": "negro", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "Y1", "t": "xtal", "label": "Cristal 16 MHz", "pins": ["D58", "D59"], "net": "XTAL", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "C23", "t": "ccap", "label": "22 pF", "pins": ["C58", "T-58"], "net": "XTAL", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "C24", "t": "ccap", "label": "22 pF", "pins": ["C59", "T-59"], "net": "XTAL", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "W62", "t": "wire", "label": "AVCC pin20", "pins": ["J58", "B+58"], "net": "V5", "color": "rojo", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "C25", "t": "ccap", "label": "100 nF (AVCC)", "pins": ["G58", "B-58"], "net": "V5", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "C26", "t": "ccap", "label": "100 nF (AREF)", "pins": ["G57", "B-57"], "net": "AREF", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "W63", "t": "wire", "label": "GND pin22", "pins": ["G56", "B-56"], "net": "GND", "color": "negro", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "W64", "t": "wire", "label": "PROFET ST → PD5", "pins": ["C21", "D60"], "net": "ST", "color": "gris", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "W65", "t": "wire", "label": "PB0 = MCU_EN → 74HC08 pin10", "pins": ["D63", "G47"], "net": "MCU_EN", "color": "cian", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "R26", "t": "res", "label": "10 kΩ (pull-down MCU_EN)", "pins": ["C63", "T-63"], "net": "MCU_EN", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "W66", "t": "wire", "label": "PB1 → fila 41 (gate)", "pins": ["G63", "A41"], "net": "GATE", "color": "azul", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "R27", "t": "res", "label": "100 Ω (serie gate)", "pins": ["B41", "B42"], "net": "GATE", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "W67", "t": "wire", "label": "Gate → Q1 (B3)", "pins": ["C42", "C3"], "net": "GATE", "color": "azul", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "R28", "t": "res", "label": "39 kΩ (sensado SOL+, alto)", "pins": ["C51", "C52"], "net": ["SOL", "OUT_SENSE"], "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "PD0/PD1 se configuran como entradas: filas 51-52 sirven de nodo"}, {"id": "R29", "t": "res", "label": "10 kΩ (sensado SOL+, bajo)", "pins": ["B52", "T-52"], "net": "OUT_SENSE", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "W68", "t": "wire", "label": "Nodo sensado → A3 (PC3)", "pins": ["A52", "G52"], "net": "OUT_SENSE", "color": "amarillo", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "R30", "t": "res", "label": "100 kΩ (sensado VBAT, alto)", "pins": ["I61", "I60"], "net": ["BAT", "VBAT_SENSE"], "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "PB3/PB4 como entradas: filas 60-61 sirven de nodo"}, {"id": "R31", "t": "res", "label": "15 kΩ (sensado VBAT, bajo)", "pins": ["H60", "B-60"], "net": "VBAT_SENSE", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "W69", "t": "wire", "label": "Nodo VBAT → A4 (PC4)", "pins": ["G60", "G51"], "net": "VBAT_SENSE", "color": "amarillo", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "W70", "t": "wire", "label": "CLUTCH_F → A1 (PC1)", "pins": ["C47", "G54"], "net": "CLUTCH_F", "color": "violeta", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "W71", "t": "wire", "label": "PD3 → LED falla", "pins": ["D54", "J36"], "net": "PD3", "color": "rojo", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "R32", "t": "res", "label": "330 Ω (LED falla)", "pins": ["I36", "I35"], "net": "PD3", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}, {"id": "LED2", "t": "led", "label": "LED rojo FALLA / diagnóstico", "pins": ["H35", "H34"], "net": ["PD3", "GND"], "color": "rojo", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "Ánodo H35, cátodo H34"}, {"id": "W72", "t": "wire", "label": "Cátodo LED → GND", "pins": ["G34", "B-34"], "net": "GND", "color": "negro", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": ""}];
+
+/* =====================================================================
+   3. MOTOR 3D (Three.js): renderer, materiales, utilidades
+   ===================================================================== */
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05; renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.05, 3000);
+const controls = new OrbitControls(camera, canvas); controls.enableDamping = true; controls.dampingFactor = 0.08; controls.screenSpacePanning = true;
+const G = { proto:new THREE.Group(), pcb:new THREE.Group(), truck:new THREE.Group() }; scene.add(G.proto, G.pcb, G.truck);
+
+const KIND_COLOR = { pwr:0xff9f1c, sig:0x00e5ff, ana:0xffd166, act:0x39ff14, fault:0xff3b3b };
+const glowables = [], pickables = [];
+function registerGlow(mesh, net, maxE = 1.1){ if (!net || net === 'NC') return; mesh.material = mesh.material.clone(); glowables.push({ mesh, net, maxE }); }
+function pickable(obj, name, desc){ obj.traverse(o => { if (o.isMesh){ o.userData.pick = { name, desc }; pickables.push(o); } }); }
+const _ec = new THREE.Color();
+function applyGlow(){
+  for (const g of glowables){
+    const n = SIM.nets[g.net]; if (!n){ g.mesh.material.emissive.setScalar(0); continue; }
+    _ec.setHex(KIND_COLOR[n.kind] || 0x00e5ff).multiplyScalar(Math.max(0, Math.min(1, n.level)) * g.maxE);
+    g.mesh.material.emissive.copy(_ec);
+  }
+}
+const std = (c, r = .55, m = 0, extra = {}) => new THREE.MeshStandardMaterial(Object.assign({ color:c, roughness:r, metalness:m }, extra));
+const MAT = {
+  black: std(0x15171a, .55, .1), bodyDark: std(0x1d2024, .5, .15), pin: std(0xd9dde2, .3, .95), copper: std(0xd08a3c, .35, .85), solder: std(0xd4d8dd, .22, 1),
+  resBody: std(0xe8d7b0, .7), ceramic: std(0xd9b24a, .6), ecap: std(0x1a2f6b, .5), diode: std(0x111111, .45), band: std(0xdedede, .4, .5), zener: std(0xb0491a, .5),
+  tvs: std(0x2d2d2d, .5), to220: std(0x1a1a1a, .5), tab: std(0xb9bec5, .35, .95), pcbGreen: std(0x0f5a2a, .55), pcbBottom: std(0x0d4a24, .55), silk: std(0xffffff, .6),
+  board: std(0xf2f3ee, .8), hole: std(0x2b2d31, .9), railRed: std(0xd93636, .7), railBlue: std(0x2f63d9, .7), potBlue: std(0x1c58c7, .55), trimBlue: std(0x1a62d6, .5),
+  term: std(0x1d7f3a, .6), termScrew: std(0xcfd3d8, .3, .9), xtal: std(0xc8ccd1, .3, .9), ledG: std(0x1fd14a, .3, 0, { transparent:true, opacity:.85 }), ledR: std(0xe02020, .3, 0, { transparent:true, opacity:.85 }),
+  glass: new THREE.MeshPhysicalMaterial({ color:0x9fd3ff, roughness:.05, metalness:0, transmission:.85, thickness:.5, transparent:true, opacity:.9 }),
+};
+const WIRE_COLORS = { negro:0x151515, rojo:0xd81e1e, naranja:0xf28c1a, amarillo:0xf2d31b, verde:0x1fa84a, azul:0x1f55d8, violeta:0x7a3fd8, blanco:0xeeeeee, gris:0x8a8f99, cian:0x19c7d8 };
+
+function makeLabel(text, w, h, opts = {}){
+  const { color = '#ffffff', bg = null, font = 'bold', size = 64, align = 'center' } = opts;
+  const cw = 512, ch = Math.max(32, Math.round(512 * h / w));
+  const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch; const ctx = cv.getContext('2d');
+  if (bg){ ctx.fillStyle = bg; ctx.fillRect(0, 0, cw, ch); }
+  ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle';
+  let fs = Math.min(ch * 0.78, size); ctx.font = `${font} ${fs}px Arial, Helvetica, sans-serif`;
+  while (ctx.measureText(text).width > cw * 0.94 && fs > 8){ fs *= 0.92; ctx.font = `${font} ${fs}px Arial, Helvetica, sans-serif`; }
+  ctx.fillText(text, align === 'center' ? cw/2 : (align === 'left' ? 8 : cw - 8), ch/2);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map:tex, transparent:true, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2 }));
+  mesh.rotation.x = -Math.PI/2; return mesh;
+}
+function tubeAlong(points, radius, material, segs = 24){
+  const curve = new THREE.CatmullRomCurve3(points, false, 'catmullrom', 0.0);
+  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, segs, radius, 8, false), material); m.castShadow = true; return m;
+}
+function box(w, h, d, mat, x = 0, y = 0, z = 0){ const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; return m; }
+function cyl(rt, rb, h, mat, x = 0, y = 0, z = 0, seg = 20){ const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat); m.position.set(x, y, z); m.castShadow = true; return m; }
+function alignBetween(mesh, a, b){ // orienta un cilindro (eje Y) entre dos puntos
+  const dir = new THREE.Vector3().subVectors(b, a); const len = dir.length(); mesh.position.copy(a).add(b).multiplyScalar(0.5);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize()); return len;
+}
+const RES_COLORS = [0x000000, 0x8b4513, 0xe02020, 0xff8c00, 0xf2d31b, 0x1fa84a, 0x1f55d8, 0x8a2be2, 0x808080, 0xffffff];
+function resistorBands(valueStr){
+  const m = /([\d.]+)\s*([kM]?)/.exec(valueStr || ''); if (!m) return [0x8b4513, 0x000000, 0xe02020];
+  let v = parseFloat(m[1]) * (m[2] === 'k' ? 1e3 : m[2] === 'M' ? 1e6 : 1); if (v < 1) v = 1;
+  let exp = 0; while (v >= 100){ v /= 10; exp++; } while (v < 10){ v *= 10; exp--; }
+  const d1 = Math.floor(v/10), d2 = Math.floor(v) % 10;
+  return [RES_COLORS[d1], RES_COLORS[d2], RES_COLORS[Math.max(0, Math.min(9, exp))]];
+}
+
+/* ---------------- Constructores de componentes (unidades: mm) ---------------- */
+function buildTwoLead(part, A, B, nets){
+  const g = new THREE.Group(); const t = part.t; const H = 3.2;
+  const a1 = A.clone().setY(H), b1 = B.clone().setY(H); const mid = a1.clone().add(b1).multiplyScalar(0.5);
+  const dirAB = b1.clone().sub(a1); const span = dirAB.length(); dirAB.normalize();
+  const leadMat = MAT.pin;
+  function leads(bodyLen){
+    const e1 = mid.clone().addScaledVector(dirAB, -bodyLen/2), e2 = mid.clone().addScaledVector(dirAB, bodyLen/2);
+    const l1 = tubeAlong([A, A.clone().setY(H*0.6), a1, e1], 0.32, leadMat, 12), l2 = tubeAlong([e2, b1, B.clone().setY(H*0.6), B], 0.32, leadMat, 12);
+    registerGlow(l1, nets[0], 0.9); registerGlow(l2, nets[1], 0.9); g.add(l1, l2);
+  }
+  if (t === 'wire'){
+    const d = A.distanceTo(B); const arc = Math.min(28, Math.max(5, d * 0.32));
+    const c = new THREE.QuadraticBezierCurve3(A, A.clone().add(B).multiplyScalar(0.5).setY(arc), B);
+    const mat = std(WIRE_COLORS[part.color] ?? 0x888888, .45, .05);
+    const w = new THREE.Mesh(new THREE.TubeGeometry(c, Math.max(8, Math.round(d/3)), 0.62, 10, false), mat); w.castShadow = true;
+    registerGlow(w, nets[0], 1.0); g.add(w);
+    // extremos pelados
+    [A, B].forEach(p => { const tip = cyl(0.3, 0.3, 2.2, MAT.pin, p.x, 1.0, p.z); g.add(tip); });
+    return g;
+  }
+  if (t === 'res'){
+    const len = Math.min(6.4, Math.max(3.5, span - 3)); leads(len);
+    const body = cyl(1.15, 1.15, len, MAT.resBody); alignBetween(body, mid.clone().addScaledVector(dirAB, -len/2), mid.clone().addScaledVector(dirAB, len/2));
+    registerGlow(body, nets[0], 0.5); g.add(body);
+    const bands = resistorBands(part.label); bands.forEach((c, i) => { const b = cyl(1.25, 1.25, 0.6, std(c, .6)); const off = -len*0.3 + i*len*0.2; b.position.copy(mid).addScaledVector(dirAB, off); b.quaternion.copy(body.quaternion); g.add(b); });
+    const tol = cyl(1.25, 1.25, 0.6, std(0xc9a227, .4, .6)); tol.position.copy(mid).addScaledVector(dirAB, len*0.36); tol.quaternion.copy(body.quaternion); g.add(tol);
+    return g;
+  }
+  if (t === 'ccap'){
+    const isBig = /µF/.test(part.label);
+    leads(isBig ? 3.0 : 2.0);
+    const body = box(isBig ? 4.2 : 3.0, isBig ? 3.4 : 2.6, 1.6, isBig ? std(0x1f7fd6, .6) : MAT.ceramic); body.position.copy(mid).setY(H + 0.8); body.lookAt(mid.clone().add(new THREE.Vector3(-dirAB.z, 0, dirAB.x))); registerGlow(body, nets[0], 0.5); g.add(body);
+    return g;
+  }
+  if (t === 'ecap'){
+    const r = /100 µF/.test(part.label) ? 3.2 : 2.5, h = /100 µF/.test(part.label) ? 10 : 7;
+    const body = cyl(r, r, h, MAT.ecap, A.x, h/2 + 0.5, A.z); registerGlow(body, nets[0], 0.5); g.add(body);
+    const top = cyl(r*0.98, r*0.98, 0.3, std(0xb9bec5, .35, .9), A.x, h + 0.65, A.z); g.add(top);
+    const stripe = box(0.8, h*0.95, 0.2, std(0xdfe4ea, .7), A.x + (B.x - A.x)*0.001, h/2 + 0.5, A.z + r*0.99); stripe.lookAt(new THREE.Vector3(A.x, h/2+0.5, A.z)); g.add(stripe);
+    const l1 = tubeAlong([A, A.clone().setY(0.5)], 0.32, MAT.pin, 4), l2 = tubeAlong([B, B.clone().setY(1.2), new THREE.Vector3(A.x + (B.x-A.x)*0.3, 1.2, A.z + (B.z-A.z)*0.3), new THREE.Vector3(A.x+(B.x-A.x)*0.3, 0.6, A.z+(B.z-A.z)*0.3)], 0.32, MAT.pin, 10);
+    registerGlow(l1, nets[0], 0.9); registerGlow(l2, nets[1], 0.9); g.add(l1, l2); return g;
+  }
+  if (t === 'diode' || t === 'zener' || t === 'tvs'){
+    const big = /SB560|SR360|1.5KE/.test(part.label);
+    const len = t === 'tvs' ? 7.5 : (big ? 5.2 : 3.6), rad = t === 'tvs' ? 2.6 : (big ? 1.7 : 0.9);
+    leads(len);
+    const body = cyl(rad, rad, len, t === 'tvs' ? MAT.tvs : (t === 'zener' ? MAT.zener : MAT.diode)); alignBetween(body, mid.clone().addScaledVector(dirAB, -len/2), mid.clone().addScaledVector(dirAB, len/2)); registerGlow(body, nets[0], 0.4); g.add(body);
+    if (t !== 'tvs'){ const cathodeEnd = (t === 'diode') ? 1 : -1; const band = cyl(rad*1.08, rad*1.08, 0.5, MAT.band); band.position.copy(mid).addScaledVector(dirAB, cathodeEnd*len*0.36); band.quaternion.copy(body.quaternion); g.add(band); }
+    return g;
+  }
+  if (t === 'led'){
+    const mat = /verde/.test(part.label) ? MAT.ledG : MAT.ledR;
+    const base = cyl(2.6, 2.6, 1.0, mat, mid.x, 4.5, mid.z), body = cyl(2.3, 2.3, 4.5, mat, mid.x, 7.2, mid.z), dome = new THREE.Mesh(new THREE.SphereGeometry(2.3, 20, 12, 0, Math.PI*2, 0, Math.PI/2), mat); dome.position.set(mid.x, 9.45, mid.z);
+    [base, body, dome].forEach(m => { registerGlow(m, nets[0], 1.6); g.add(m); });
+    const l1 = tubeAlong([A, new THREE.Vector3(A.x, 4.0, A.z), new THREE.Vector3(mid.x + (A.x-mid.x)*0.5, 4.2, mid.z + (A.z-mid.z)*0.5)], 0.3, MAT.pin, 6), l2 = tubeAlong([B, new THREE.Vector3(B.x, 4.0, B.z), new THREE.Vector3(mid.x + (B.x-mid.x)*0.5, 4.2, mid.z + (B.z-mid.z)*0.5)], 0.3, MAT.pin, 6);
+    g.add(l1, l2); return g;
+  }
+  if (t === 'xtal'){
+    leads(0.1);
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(2.2, 6.5, 4, 12), MAT.xtal); body.position.copy(mid).setY(H + 2.2); body.rotation.z = Math.PI/2; body.rotation.y = Math.atan2(dirAB.x, dirAB.z) + Math.PI/2; body.castShadow = true; g.add(body); return g;
+  }
+  return g;
+}
+function buildDIP(part, holes, nets){
+  const n = holes.length, half = n/2, g = new THREE.Group();
+  const xs = holes.slice(0, half).map(h => h.x); const xmin = Math.min(...xs), xmax = Math.max(...xs);
+  const len = (xmax - xmin) + 2.2, w = 6.6, hgt = 3.6, y0 = 1.4;
+  const body = box(len, hgt, w, MAT.bodyDark, (xmin+xmax)/2, y0 + hgt/2, 0); g.add(body);
+  const notch = cyl(0.9, 0.9, 0.3, std(0x3a3d42, .7), xmin - 1.1 + 0.3, y0 + hgt + 0.01, 0, 12); g.add(notch);
+  const dot = cyl(0.45, 0.45, 0.2, std(0xe6e6e6, .7), xmin, y0 + hgt + 0.02, 2.2, 10); g.add(dot);
+  const lbl = makeLabel(part.label.split(' (')[0], len*0.92, 2.4, { size:56 }); lbl.position.set((xmin+xmax)/2, y0 + hgt + 0.03, -0.4); g.add(lbl);
+  const idl = makeLabel(part.id, len*0.5, 1.6, { color:'#9fd3ff', size:40 }); idl.position.set((xmin+xmax)/2, y0 + hgt + 0.03, 1.8); g.add(idl);
+  holes.forEach((h, i) => {
+    const pin = box(0.5, y0 + 0.4, 0.3, MAT.pin, h.x, (y0 + 0.4)/2 - 0.2, h.z); const shoulder = box(1.4, 0.3, 0.9, MAT.pin, h.x, y0 + 0.2, h.z + (h.z < 0 ? 1.0 : -1.0));
+    registerGlow(pin, nets[i], 1.0); registerGlow(shoulder, nets[i], 1.0); g.add(pin, shoulder);
+  });
+  return g;
+}
+function buildTO220(part, holes, nets, fivePin){
+  const g = new THREE.Group(); const cx = (holes[0].x + holes[holes.length-1].x)/2, cz = holes[0].z;
+  const back = cz < 0 ? -1 : 1; // cara metálica hacia el borde
+  const body = box(fivePin ? 10.4 : 10.2, 9, 4.6, MAT.to220, cx, 8.5 + 4.5 - 4.5, cz + back*2.4); body.position.y = 9.5; g.add(body);
+  const tab = box(10.2, 6.5, 1.3, MAT.tab, cx, 16.5, cz + back*4.0); g.add(tab); const holeTab = cyl(1.6, 1.6, 1.4, std(0x202020), cx, 16.5, cz + back*4.0); holeTab.rotation.x = Math.PI/2; g.add(holeTab);
+  const lbl = makeLabel(part.label.split(' (')[0], 9.5, 2.6, { size:52 }); lbl.position.set(cx, 14.01, cz + back*2.4); g.add(lbl);
+  holes.forEach((h, i) => { const pin = tubeAlong([h, new THREE.Vector3(h.x, 3.0, h.z), new THREE.Vector3(h.x, 5.0, cz + back*2.4)], 0.42, MAT.pin, 8); registerGlow(pin, nets[i], 1.0); g.add(pin); });
+  return g;
+}
+function buildSIP3(part, holes, nets){
+  const g = new THREE.Group(); const cx = holes[1].x, cz = holes[1].z; const back = cz < 0 ? -1 : 1;
+  const body = box(10.4, 11, 7.6, MAT.black, cx, 8.5, cz + back*3.0); g.add(body);
+  const lbl = makeLabel('OKI-78SR-12', 9.5, 2.4, { size:50 }); lbl.position.set(cx, 14.05, cz + back*3.0 - 1.4); g.add(lbl);
+  const lbl2 = makeLabel('BUCK 7–36V→12V', 9.5, 2.0, { size:44, color:'#9fd3ff' }); lbl2.position.set(cx, 14.06, cz + back*3.0 + 1.2); g.add(lbl2);
+  holes.forEach((h, i) => { const pin = tubeAlong([h, new THREE.Vector3(h.x, 3.0, h.z)], 0.4, MAT.pin, 4); registerGlow(pin, nets[i], 1.0); g.add(pin); });
+  return g;
+}
+function buildPot(part, holes, nets, trim){
+  const g = new THREE.Group(); const cx = holes[1].x, cz = holes[1].z; const back = cz < 0 ? -1 : 1;
+  if (trim){
+    const body = box(9.6, 10, 4.8, MAT.trimBlue, cx, 6.5, cz + back*2.6); g.add(body);
+    const screw = cyl(1.3, 1.3, 1.2, MAT.termScrew, cx - 3.2, 12.1, cz + back*2.6); g.add(screw); const slot = box(1.8, 0.3, 0.4, std(0x333)); slot.position.set(cx - 3.2, 12.7, cz + back*2.6); g.add(slot);
+    const lbl = makeLabel('RV2 10k AJUSTE 1300 RPM', 9.2, 2.2, { size:46 }); lbl.position.set(cx + 0.6, 11.55, cz + back*2.6); g.add(lbl);
+  } else {
+    const body = box(10, 6, 9.5, MAT.potBlue, cx, 4.5, cz + back*3.6); g.add(body);
+    const shaft = cyl(2.8, 2.8, 8, std(0xe8e8e8, .4, .2), cx, 11.5, cz + back*3.6); g.add(shaft); const knob = cyl(4.5, 4.5, 3.5, std(0x202020, .5), cx, 17, cz + back*3.6); g.add(knob);
+    const mark = box(0.5, 0.3, 3.5, std(0xffffff), cx, 18.8, cz + back*3.6); g.add(mark);
+    const lbl = makeLabel('RV1 100k · RPM', 9.5, 2.2, { size:46 }); lbl.position.set(cx, 7.55, cz + back*7.4); g.add(lbl);
+  }
+  holes.forEach((h, i) => { const pin = tubeAlong([h, new THREE.Vector3(h.x, 2.5, h.z), new THREE.Vector3(h.x, 3.5, cz + back*1.5)], 0.4, MAT.pin, 6); registerGlow(pin, nets[i], 1.0); g.add(pin); });
+  return g;
+}
+function buildTerminal(part, holes, nets, labels){
+  const g = new THREE.Group(); const n = holes.length; const cx = (holes[0].x + holes[n-1].x)/2, cz = holes[0].z; const back = cz < 0 ? -1 : 1;
+  const body = box(2.54*n + 1.2, 10, 7.6, MAT.term, cx, 5.2, cz + back*1.5); g.add(body);
+  holes.forEach((h, i) => {
+    const screw = cyl(1.0, 1.0, 0.6, MAT.termScrew, h.x, 10.5, cz + back*1.5); g.add(screw);
+    const slot = box(1.4, 0.2, 0.3, std(0x444), h.x, 10.85, cz + back*1.5); g.add(slot);
+    const hole = box(1.8, 2.4, 0.4, std(0x0a0a0a), h.x, 4.0, cz + back*(1.5 + 3.85)); g.add(hole);
+    const pin = tubeAlong([h, new THREE.Vector3(h.x, 1.2, h.z)], 0.45, MAT.pin, 4); registerGlow(pin, nets[i], 1.0); g.add(pin);
+    if (labels && labels[i]){ const l = makeLabel(labels[i], 2.5, 1.2, { size:40, color:'#fff' }); l.position.set(h.x, 10.22, cz + back*(1.5 - 2.6)); g.add(l); }
+  });
+  return g;
+}
+
+/* =====================================================================
+   4. VISTA 1: PROTOBOARD 830 PUNTOS (coordenadas = tabla del dossier)
+   ===================================================================== */
+const COLZ = { A:-12.7, B:-10.16, C:-7.62, D:-5.08, E:-2.54, F:2.54, G:5.08, H:7.62, I:10.16, J:12.7, 'T-':-17.78, 'T+':-20.32, 'B-':17.78, 'B+':20.32 };
+function holePos(code){ const m = /^([A-J]|[TB][+-])(\d+)$/.exec(code); if (!m) throw new Error('hueco inválido ' + code); return new THREE.Vector3((parseInt(m[2]) - 32) * 2.54, 0, COLZ[m[1]]); }
+const TERM_LABELS = { X1:['BAT+','BAT−'], X2:['+5V','TPS','TACH','CLU'], X3:['SOL+','SOL−'] };
+function buildProtoboard(){
+  const g = G.proto;
+  // luces
+  const hemi = new THREE.HemisphereLight(0xdfe8ff, 0x3a3f4a, 0.75); g.add(hemi);
+  const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(-60, 140, 90); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -110; sun.shadow.camera.right = 110; sun.shadow.camera.top = 60; sun.shadow.camera.bottom = -60; sun.shadow.camera.near = 20; sun.shadow.camera.far = 400; sun.shadow.bias = -0.0005; g.add(sun);
+  const fill = new THREE.DirectionalLight(0x9fc5ff, 0.6); fill.position.set(80, 60, -80); g.add(fill);
+  // mesa
+  const table = new THREE.Mesh(new THREE.PlaneGeometry(600, 400), std(0x3b3f46, .9)); table.rotation.x = -Math.PI/2; table.position.y = -8.2; table.receiveShadow = true; g.add(table);
+  // tarjeta
+  const L = 63*2.54 + 10, W = 46; const board = box(L, 8, W, MAT.board, 0, -4, 0); board.receiveShadow = true; g.add(board);
+  const groove = box(L, 0.4, 1.4, std(0xd8d9d3, .9), 0, 0.01, 0); g.add(groove);
+  // huecos (instanciados)
+  const holeGeo = new THREE.BoxGeometry(1.0, 0.3, 1.0); const holes = new THREE.InstancedMesh(holeGeo, MAT.hole, 63*10 + 63*4); const mtx = new THREE.Matrix4(); let k = 0;
+  for (let r = 1; r <= 63; r++){ for (const c of ['A','B','C','D','E','F','G','H','I','J','T-','T+','B-','B+']){ const p = holePos(c + r); mtx.makeTranslation(p.x, 0.12, p.z); holes.setMatrixAt(k++, mtx); } }
+  holes.instanceMatrix.needsUpdate = true; g.add(holes);
+  // líneas de riel
+  [['T+', MAT.railRed, -1.9], ['T-', MAT.railBlue, 1.9], ['B-', MAT.railBlue, -1.9], ['B+', MAT.railRed, 1.9]].forEach(([r, m, off]) => { const z = COLZ[r] + off; g.add(box(L - 6, 0.1, 0.5, m, 0, 0.05, z)); });
+  // rotulación
+  for (let r = 1; r <= 63; r++){ if (r === 1 || r % 5 === 0){ const l1 = makeLabel(String(r), 4, 1.8, { color:'#444', size:48 }); l1.position.set(holePos('A' + r).x, 0.06, -14.9); g.add(l1); const l2 = l1.clone(); l2.position.z = 14.9; g.add(l2); } }
+  'ABCDEFGHIJ'.split('').forEach(c => { const l = makeLabel(c, 2, 2, { color:'#444', size:52 }); l.position.set(-83, 0.06, COLZ[c]); g.add(l); const l2 = l.clone(); l2.position.x = 83; g.add(l2); });
+  [['+', 'T+', '#d93636'], ['−', 'T-', '#2f63d9'], ['−', 'B-', '#2f63d9'], ['+', 'B+', '#d93636']].forEach(([t, r, c]) => { const l = makeLabel(t, 2.5, 2.5, { color:c, size:64 }); l.position.set(-84, 0.06, COLZ[r]); g.add(l); const l2 = l.clone(); l2.position.x = 84; g.add(l2); });
+  const title = makeLabel('FRENO MOTOR AUTOMÁTICO · PROTOTIPO PROTOBOARD 830 · 156 PASOS', 110, 3.2, { color:'#2a3a50', size:50 }); title.position.set(0, 0.06, -22.9); g.add(title);
+  const legend = makeLabel('T+ / B+ = 5 V   ·   T− / B− = GND   ·   12 V naranja   ·   24 V rojo grueso', 110, 2.6, { color:'#2a3a50', size:44 }); legend.position.set(0, 0.06, 22.9); g.add(legend);
+  // componentes desde la tabla única
+  PB_PARTS.forEach(p => {
+    const holesP = p.pins.map(holePos); const nets = Array.isArray(p.net) ? p.net : p.pins.map(() => p.net);
+    let obj;
+    if (/^dip/.test(p.t)) obj = buildDIP(p, holesP, nets);
+    else if (p.t === 'to220') obj = buildTO220(p, holesP, nets, false);
+    else if (p.t === 'to220_5') obj = buildTO220(p, holesP, nets, true);
+    else if (p.t === 'sip3') obj = buildSIP3(p, holesP, nets);
+    else if (p.t === 'pot') obj = buildPot(p, holesP, nets, false);
+    else if (p.t === 'trim') obj = buildPot(p, holesP, nets, true);
+    else if (p.t === 'term') obj = buildTerminal(p, holesP, nets, TERM_LABELS[p.id]);
+    else obj = buildTwoLead(p, holesP[0], holesP[1], nets);
+    const desc = `${p.t === 'wire' ? 'Cable ' + (p.color || '') : p.label}\nHuecos: ${p.pins.join(' → ')}\nRed: ${[...new Set(nets)].join(' / ')}${p.nota ? '\n' + p.nota : ''}`;
+    pickable(obj, p.id, desc); g.add(obj);
+  });
+  // etiquetas de bloque
+  [['ALIMENTACIÓN 24V→12V→5V', 13, 24.5], ['NE555 GEN. RPM (LAB)', 11.5, -24.5], ['WATCHDOG DS1232', 15.5, -24.5], ['PROFET + Q1 POTENCIA', 20, -24.5], ['LM2907 F/V', 24.5, 24.5], ['LM393 TPS/RPM', 30.5, 24.5], ['LM393 VENTANA', 38.5, 24.5], ['74HCT08 AND', 46, 24.5], ['ATmega328P CANAL B', 56.5, 24.5]].forEach(([t, row, z]) => {
+    const l = makeLabel(t, 22, 2.2, { color:'#1d6fa5', size:40 }); l.position.set((row-32)*2.54, 0.07, z); g.add(l);
+  });
+}
+
+/* =====================================================================
+   5. VISTA 2: PLACA MADRE PCB 2 CAPAS (100 × 84 mm) CON PISTAS VISIBLES
+   ===================================================================== */
+const PCB = { W:100, H:84, T:1.6 };
+function traceMesh(pts, w, net, layer = 'top', color = MAT.copper){
+  const g = new THREE.Group(); const y = layer === 'top' ? 0.06 : -PCB.T - 0.06; const th = 0.08;
+  for (let i = 0; i < pts.length - 1; i++){
+    const a = new THREE.Vector3(pts[i][0], y, pts[i][1]), b = new THREE.Vector3(pts[i+1][0], y, pts[i+1][1]); const len = a.distanceTo(b); if (len < 0.01) continue;
+    const seg = new THREE.Mesh(new THREE.BoxGeometry(len, th, w), color); seg.position.copy(a).add(b).multiplyScalar(0.5); seg.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x); seg.receiveShadow = true; registerGlow(seg, net, 0.9); g.add(seg);
+    if (i < pts.length - 2){ const j = cyl(w/2, w/2, th, color, b.x, y, b.z, 16); registerGlow(j, net, 0.9); g.add(j); }
+  }
+  pickable(g, 'Pista ' + net, `Red ${net} · ancho ${w.toFixed(1)} mm · capa ${layer === 'top' ? 'TOP (componentes)' : 'BOTTOM (plano GND)'}`);
+  return g;
+}
+function viaMesh(x, z, net, big){ const r = big ? 0.6 : 0.3; const v = cyl(r + 0.35, r + 0.35, PCB.T + 0.16, MAT.copper, x, -PCB.T/2, z, 16); registerGlow(v, net, 1.3); const h = cyl(r, r, PCB.T + 0.2, std(0x101010), x, -PCB.T/2, z, 12); const g = new THREE.Group(); g.add(v, h); return g; }
+function padMesh(x, z, w, d, net){ const p = box(w, 0.1, d, MAT.copper, x, 0.05, z); registerGlow(p, net, 1.3); const s = new THREE.Mesh(new THREE.SphereGeometry(Math.min(w, d) * 0.42, 12, 8), MAT.solder); s.position.set(x, 0.12, z); s.scale.y = 0.55; const g = new THREE.Group(); g.add(p, s); return g; }
+function soic(x, z, n, label, pinNets, w = 4.0, pitch = 1.27, id = ''){
+  const g = new THREE.Group(); const half = n/2; const len = pitch * (half - 1) + 1.6;
+  const body = box(w, 1.5, len, MAT.bodyDark, x, 0.85, z); g.add(body);
+  const dot = cyl(0.25, 0.25, 0.1, std(0xeeeeee), x - w/2 + 0.6, 1.62, z - len/2 + 0.7, 8); g.add(dot);
+  const l = makeLabel(label, len*0.9, 1.4, { size:50 }); l.rotation.z = Math.PI/2; l.rotation.set(-Math.PI/2, 0, Math.PI/2); l.position.set(x, 1.63, z); g.add(l);
+  if (id){ const li = makeLabel(id, 3, 1.1, { size:44, color:'#fff' }); li.position.set(x, 0.07, z - len/2 - 1.3); g.add(li); }
+  for (let i = 0; i < half; i++){ const zz = z - (half-1)*pitch/2 + i*pitch; const pL = padMesh(x - w/2 - 0.9, zz, 1.4, 0.7, pinNets ? pinNets[i] : null), pR = padMesh(x + w/2 + 0.9, zz, 1.4, 0.7, pinNets ? pinNets[n-1-i] : null); g.add(pL, pR);
+    const legL = box(0.9, 0.2, 0.5, MAT.pin, x - w/2 - 0.35, 0.3, zz), legR = box(0.9, 0.2, 0.5, MAT.pin, x + w/2 + 0.35, 0.3, zz); g.add(legL, legR); }
+  return g;
+}
+function smd(x, z, w, d, mat, net, label, vertical){
+  const g = new THREE.Group(); const b = box(vertical ? d : w, 0.9, vertical ? w : d, mat, x, 0.5, z); registerGlow(b, net, 0.5); g.add(b);
+  const dx = vertical ? 0 : w/2 + 0.5, dz = vertical ? w/2 + 0.5 : 0; g.add(padMesh(x - dx, z - dz, vertical ? d*0.9 : 0.9, vertical ? 0.9 : d*0.9, net), padMesh(x + dx, z + dz, vertical ? d*0.9 : 0.9, vertical ? 0.9 : d*0.9, net));
+  if (label){ const l = makeLabel(label, Math.max(3, w + 1.5), 1.0, { size:40 }); l.position.set(x, 0.07, z + (vertical ? w/2 + 1.3 : d/2 + 1.0)); g.add(l); }
+  return g;
+}
+function deutsch(x, z, n, label, pinLabels, nets){
+  const g = new THREE.Group(); const w = n*5 + 6; const body = box(w, 9, 8, std(0x6b6f76, .6), x, 4.5, z); g.add(body);
+  const lip = box(w + 1.5, 1.2, 9.5, std(0x3c3f45, .6), x, 0.6, z); g.add(lip);
+  for (let i = 0; i < n; i++){ const px = x - (n-1)*2.5 + i*5; const cavity = cyl(1.3, 1.3, 2, std(0x15161a), px, 9.1, z, 12); g.add(cavity); const pin = cyl(0.8, 0.8, 7, MAT.pin, px, 5, z, 10); g.add(pin);
+    const pad = padMesh(px, z + (z > 0 ? -6 : 6), 2.4, 2.4, nets[i]); g.add(pad); const l = makeLabel(pinLabels[i], 4.6, 1.2, { size:44 }); l.position.set(px, 0.07, z + (z > 0 ? -8.2 : 8.2)); g.add(l); }
+  const l = makeLabel(label, w, 2.2, { size:48 }); l.position.set(x, 9.05, z); g.add(l);
+  return g;
+}
+function buildPCB(){
+  const g = G.pcb;
+  const hemi = new THREE.HemisphereLight(0xdfe8ff, 0x2a2f38, 0.7); g.add(hemi);
+  const sun = new THREE.DirectionalLight(0xffffff, 2.4); sun.position.set(-50, 110, 70); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -70; sun.shadow.camera.right = 70; sun.shadow.camera.top = 60; sun.shadow.camera.bottom = -60; sun.shadow.camera.near = 20; sun.shadow.camera.far = 300; sun.shadow.bias = -0.0004; g.add(sun);
+  const fill = new THREE.DirectionalLight(0x9fc5ff, 0.5); fill.position.set(70, 40, -60); g.add(fill);
+  const table = new THREE.Mesh(new THREE.PlaneGeometry(500, 400), std(0x2d3139, .9)); table.rotation.x = -Math.PI/2; table.position.y = -PCB.T - 6; table.receiveShadow = true; g.add(table);
+  // sustrato y capas
+  const board = box(PCB.W, PCB.T, PCB.H, MAT.pcbGreen, 0, -PCB.T/2, 0); board.receiveShadow = true; g.add(board);
+  const bottomPlane = new THREE.Mesh(new THREE.PlaneGeometry(PCB.W - 4, PCB.H - 4), MAT.copper.clone()); bottomPlane.rotation.x = Math.PI/2; bottomPlane.position.y = -PCB.T - 0.02; bottomPlane.material.color.setHex(0x8a5a2a); g.add(bottomPlane);
+  const bl = makeLabel('CAPA BOTTOM: PLANO DE TIERRA CONTINUO (GND_LOGIC) · GND_PWR separado · estrella en J1', 90, 3, { color:'#ffe9c4', size:46 }); bl.rotation.set(Math.PI/2, 0, Math.PI); bl.position.set(0, -PCB.T - 0.08, 0); g.add(bl);
+  // agujeros de montaje M4
+  [[-45, -37], [45, -37], [-45, 37], [45, 37]].forEach(([x, z]) => { const ring = new THREE.Mesh(new THREE.RingGeometry(2.2, 4.0, 32), MAT.copper); ring.rotation.x = -Math.PI/2; ring.position.set(x, 0.05, z); g.add(ring); const hole = cyl(2.15, 2.15, PCB.T + 0.4, std(0x0a0d12), x, -PCB.T/2, z, 24); g.add(hole); pickable(ring, 'Agujero de montaje M4', 'Ø 4.3 mm, anillo de cobre Ø 8 mm unido al chasis. Tornillo M4×12 + arandela de presión (ISO 16750-3, 5 g).'); });
+  // serigrafía general
+  const t1 = makeLabel('FRENO MOTOR AUTO v2.0 · 24 V · ISO 26262 ASIL-B · 2 CAPAS 2 oz', 70, 3.2, { size:48 }); t1.position.set(8, 0.07, -41.5); g.add(t1);
+  const t2 = makeLabel('ZONA 1-2 POTENCIA / REGULACIÓN', 40, 2, { size:40, color:'#ffd9a0' }); t2.position.set(-10, 0.07, -19); g.add(t2);
+  const t3 = makeLabel('ZONA 5 ETAPA DE POTENCIA (pistas 4.0 mm)', 44, 2, { size:40, color:'#ffd9a0' }); t3.position.set(30, 0.07, -3); g.add(t3);
+  const t4 = makeLabel('ZONA 3 SENSORES (guarda GND)', 36, 2, { size:40, color:'#bfe6ff' }); t4.position.set(-30, 0.07, 30.5); g.add(t4);
+  const t5 = makeLabel('ZONA 4 LÓGICA 2oo2 + WATCHDOG', 40, 2, { size:40, color:'#bfe6ff' }); t5.position.set(24, 0.07, 32.5); g.add(t5);
+  // ---------- conectores ----------
+  g.add(deutsch(-30, -37.5, 4, 'J1 DEUTSCH DT04-4P · POTENCIA', ['SOL+', 'SOL−', 'BAT+', 'GND'], ['SOL', 'SOL_RET', 'BAT', 'GND']));
+  g.add(deutsch(-30, 38, 6, 'J2 DEUTSCH DT04-6P · SENSORES', ['TPS', 'TACH', 'CLU', '+5V', 'GND', 'RES'], ['TPS_RAW', 'TACH', 'CLUTCH_RAW', 'V5', 'GND', 'NC']));
+  // ---------- pistas de potencia (4.0 mm, TOP) ----------
+  g.add(traceMesh([[-27, -31.5], [-27, -24], [20, -24], [20, -30], [23, -30]], 4.0, 'BAT'));
+  g.add(traceMesh([[37, -28], [37, -14], [-39, -14], [-39, -31.5]], 4.0, 'SOL'));
+  g.add(traceMesh([[-33, -31.5], [-33, -8], [46, -8], [46, -22]], 4.0, 'SOL_RET'));
+  g.add(traceMesh([[44, -32], [44, -38.5], [-21, -38.5], [-21, -31.5]], 4.0, 'GND'));
+  // ---------- zona 2: fusible, TVS, diodo, buck, LDO ----------
+  g.add(traceMesh([[-16, -26], [-16, -30]], 1.5, 'BAT'));
+  g.add(smd(-14, -30, 3.0, 1.6, std(0xd9c9a0, .6), 'BAT', 'F1 2A', false));
+  g.add(traceMesh([[-12, -30], [-8, -30]], 1.5, 'V_IN')); g.add(traceMesh([[-10, -30], [-10, -32]], 1.5, 'V_IN'));
+  g.add(smd(-10, -34, 4.0, 2.6, MAT.tvs, 'V_IN', 'TVS1 SMCJ33CA', true)); g.add(traceMesh([[-10, -36], [-10, -37.5]], 1.5, 'GND'));
+  g.add(smd(-6, -30, 3.4, 1.8, MAT.diode, 'V_IN', 'D1 SS36', false));
+  g.add(traceMesh([[-4, -30], [-1, -30], [-1, -32]], 1.0, 'V_IN'));
+  g.add(smd(-1, -34.3, 3.6, 3.2, MAT.ecap, 'V_IN', 'C1 100µ', true)); g.add(traceMesh([[-1, -36.5], [-1, -37.5]], 1.0, 'GND'));
+  g.add(traceMesh([[-1, -30], [1.5, -30]], 1.0, 'V_IN'));
+  g.add(soic(4, -30, 8, 'TPS54360B-Q1', ['V_IN', 'V_IN', 'NC', 'GND', 'GND', 'NC', 'V12', 'V12'], 4.0, 1.27, 'U1'));
+  g.add(traceMesh([[6.9, -30], [9, -30]], 1.0, 'V12'));
+  const ind = cyl(3.2, 3.2, 3.2, std(0x2a2a2e, .6), 11, 1.6, -31, 24); registerGlow(ind, 'V12', 0.4); g.add(ind); pickable(ind, 'L1 33 µH', 'Inductor de potencia blindado 33 µH / 3 A (Würth WE-PD) del buck TPS54360B-Q1.'); const li = makeLabel('L1 33µH', 6, 1.2, { size:44 }); li.position.set(11, 0.07, -26.6); g.add(li);
+  g.add(traceMesh([[9, -30], [9, -27.5]], 1.0, 'V12'));
+  g.add(soic(16, -30, 6, 'TPS7B6950-Q1', ['V12', 'GND', 'NC', 'NC', 'NC', 'V5'], 3.0, 0.95, 'U2'));
+  g.add(traceMesh([[13, -30], [11.5, -30], [11.5, -27.5], [9, -27.5]], 1.0, 'V12'));
+  g.add(traceMesh([[18.5, -29.5], [18.5, -26.5]], 1.0, 'V5'));
+  // vías hacia la capa inferior para cruzar los carriles de potencia
+  g.add(viaMesh(9, -27.5, 'V12', true)); g.add(traceMesh([[9, -27.5], [9, 10]], 1.0, 'V12', 'bottom')); g.add(viaMesh(9, 10, 'V12', true)); g.add(traceMesh([[9, 10], [-24, 10], [-24, 13.5]], 1.0, 'V12'));
+  g.add(viaMesh(18.5, -26.5, 'V5', true)); g.add(traceMesh([[18.5, -26.5], [18.5, 4]], 1.0, 'V5', 'bottom')); g.add(viaMesh(18.5, 4, 'V5', true)); g.add(traceMesh([[18.5, 4], [-10, 4], [-10, 12]], 1.0, 'V5')); g.add(traceMesh([[18.5, 4], [38, 4], [38, 12]], 1.0, 'V5'));
+  // ---------- zona 5: PROFET, Q1, diodo de rueda libre, LED ----------
+  const profet = new THREE.Group(); const pb = box(10, 1.6, 6, MAT.bodyDark, 30, 0.9, -28); profet.add(pb);
+  const hs = new THREE.Group(); for (let i = 0; i < 6; i++){ hs.add(box(10.5, 4, 0.6, std(0xb9bec5, .35, .9), 30, 4.2, -30.5 + i*1.1)); } hs.add(box(10.5, 0.8, 6.2, std(0xb9bec5, .35, .9), 30, 2.2, -28)); profet.add(hs);
+  profet.add(padMesh(23, -30, 4, 3, 'BAT'), padMesh(37, -28, 4, 3, 'SOL'), padMesh(27, -24.3, 1.0, 1.4, 'PROFET_IN'), padMesh(30, -24.3, 1.0, 1.4, 'ST'), padMesh(33, -24.3, 1.0, 1.4, 'GND'));
+  const pl = makeLabel('U7 BTT6020-1ERA PROFET+ 24V', 14, 1.4, { size:44 }); pl.position.set(30, 0.07, -21.8); profet.add(pl); pickable(profet, 'U7 PROFET+ 24V BTT6020-1ERA', 'Interruptor inteligente lado alto 20 mΩ, t_on 150 µs, protección cortocircuito / sobretemperatura / batería invertida, salida ST de diagnóstico. Isla térmica 6 cm² + 16 vías + disipador.'); g.add(profet);
+  for (let i = 0; i < 16; i++) g.add(viaMesh(26 + (i%4)*2.6, -31 + Math.floor(i/4)*2.0, 'BAT', false));
+  const q1 = new THREE.Group(); q1.add(box(6.5, 2.3, 6, MAT.to220, 46, 1.2, -28)); q1.add(padMesh(46, -24.5, 6, 3, 'SOL_RET'), padMesh(44, -32, 1.4, 2.2, 'GND'), padMesh(48, -32, 1.4, 2.2, 'GATE'));
+  const ql = makeLabel('Q1 IPD50N06S4L', 9, 1.3, { size:44 }); ql.position.set(46, 0.07, -34.5); q1.add(ql); pickable(q1, 'Q1 IPD50N06S4L-12 (DPAK)', 'MOSFET lado bajo 60 V / 12 mΩ, nivel lógico, AEC-Q101. Segundo corte en serie mandado solo por el MCU.'); g.add(q1);
+  g.add(traceMesh([[48, -32], [48, -34.5]], 0.5, 'GATE')); g.add(viaMesh(48, -34.5, 'GATE', false)); g.add(traceMesh([[48, -34.5], [49.5, -34.5], [49.5, 14], [40, 14]], 0.4, 'GATE', 'bottom')); g.add(viaMesh(40, 14, 'GATE', false));
+  g.add(smd(41, -11, 4.2, 2.6, MAT.diode, 'SOL', 'D5 SS5P6', true));
+  const led1 = new THREE.Group(); led1.add(smd(44.5, -11, 3.0, 1.6, MAT.ledG, 'SOL', 'LED1 ON', true)); led1.children[0].children[0].material = MAT.ledG.clone(); registerGlow(led1.children[0].children[0], 'SOL', 2.0); g.add(led1);
+  g.add(traceMesh([[27, -24.3], [27, -20]], 0.4, 'PROFET_IN')); g.add(viaMesh(27, -20, 'PROFET_IN', false)); g.add(traceMesh([[27, -20], [27, 2], [18, 2], [18, 14]], 0.4, 'PROFET_IN', 'bottom')); g.add(viaMesh(18, 14, 'PROFET_IN', false));
+  g.add(traceMesh([[30, -24.3], [30, -19]], 0.4, 'ST')); g.add(viaMesh(30, -19, 'ST', false)); g.add(traceMesh([[30, -19], [30, 0], [36, 0], [36, 12]], 0.4, 'ST', 'bottom')); g.add(viaMesh(36, 12, 'ST', false));
+  g.add(traceMesh([[33, -24.3], [33, -21.5]], 0.6, 'GND')); g.add(viaMesh(33, -21.5, 'GND', false));
+  // ---------- zona 3: entradas de sensores ----------
+  const sens = [['TPS_RAW', 'TPS_F', -42.5, 'R7 1k', 'C11 1µ', 'D6'], ['TACH', 'TACH_F', -37.5, 'R6 10k', 'C9 100n', 'DZ1'], ['CLUTCH_RAW', 'CLUTCH_F', -32.5, 'R9 1k', 'C12 100n', 'D7']];
+  sens.forEach(([nraw, nf, x, rl, cl, dl]) => {
+    g.add(traceMesh([[x, 32], [x, 29.5]], 0.4, nraw)); g.add(smd(x, 28, 2.0, 1.2, MAT.resBody, nf, '', true)); g.add(traceMesh([[x, 26.5], [x, 23]], 0.4, nf));
+    g.add(smd(x - 1.6, 22, 1.6, 1.0, MAT.ceramic, nf, '', true)); g.add(smd(x + 1.6, 22, 1.6, 1.0, MAT.diode, nf, '', true));
+    const l = makeLabel(rl, 5, 1.0, { size:40 }); l.position.set(x + 3.6, 0.07, 28); g.add(l);
+  });
+  g.add(traceMesh([[-42.5, 23], [-42.5, 18], [-36, 18]], 0.4, 'TPS_F'));
+  g.add(traceMesh([[-37.5, 23], [-37.5, 20.5], [-34.5, 20.5], [-34.5, 19.9]], 0.4, 'TACH_F'));
+  g.add(traceMesh([[-32.5, 23], [-32.5, 21], [-26, 21], [-26, 24], [-2, 24], [-2, 22]], 0.4, 'CLUTCH_F'));
+  g.add(traceMesh([[-27.5, 32], [-27.5, 29], [-24, 29], [-24, 13.5]], 0.8, 'V5'));
+  // ---------- U4 LM2907, U5/U6 LM2903B-Q1, RV2, U8, U9, U10 ----------
+  g.add(soic(-30, 17, 8, 'LM2907M-8', ['TACH_AC', 'CP1', 'VFV', 'VFV', 'V12', 'V12', 'VFV', 'GND'], 4.0, 1.27, 'U4'));
+  g.add(smd(-36, 14, 1.6, 1.0, MAT.ceramic, 'CP1', 'C13 15n NP0', false)); g.add(smd(-36, 22, 2.0, 1.2, MAT.resBody, 'VFV', 'R12 68k', false));
+  g.add(traceMesh([[-32.9, 15.1], [-36, 15.1], [-36, 14.8]], 0.4, 'TACH_AC')); g.add(traceMesh([[-32.9, 18.9], [-38, 18.9], [-38, 22]], 0.4, 'VFV'));
+  g.add(traceMesh([[-27.1, 15.1], [-24, 15.1], [-24, 13.5]], 0.6, 'V12'));
+  g.add(traceMesh([[-32.9, 17.6], [-36, 17.6], [-36, 15.5]], 0.4, 'CP1'));
+  g.add(traceMesh([[-27.1, 18.9], [-22, 18.9], [-22, 12], [-13, 12], [-13, 15.1]], 0.4, 'VFV'));
+  g.add(soic(-16, 17, 8, 'LM2903B-Q1', ['TPS_GO', 'TPS_F', 'VREF1', 'GND', 'VFV_S', 'VREF2', 'RPM_OK', 'V5'], 4.0, 1.27, 'U5'));
+  g.add(traceMesh([[-36, 18], [-22, 18], [-22, 16.4], [-18.9, 16.4]], 0.4, 'TPS_F'));
+  g.add(soic(-4, 17, 8, 'LM2903B-Q1', ['TPS_GO', 'VREF3', 'TPS_F', 'GND', 'VREF4', 'TPS_F', 'TPS_GO', 'V5'], 4.0, 1.27, 'U6'));
+  g.add(traceMesh([[-18.9, 16.4], [-20, 16.4], [-20, 26], [-7, 26], [-7, 17.6]], 0.4, 'TPS_F'));
+  g.add(traceMesh([[-18.9, 15.1], [-20.5, 15.1], [-20.5, 8], [-6.9, 8], [-6.9, 15.1]], 0.4, 'TPS_GO'));
+  g.add(traceMesh([[-6.9, 15.1], [-8, 15.1], [-8, 6], [6, 6], [6, 15.1], [8.6, 15.1]], 0.4, 'TPS_GO'));
+  g.add(traceMesh([[-13.1, 16.4], [-10.5, 16.4], [-10.5, 2], [4, 2], [4, 14.5], [8.6, 14.5]], 0.4, 'RPM_OK'));
+  g.add(traceMesh([[-13.1, 17.6], [-12, 17.6], [-12, 10.5]], 0.4, 'VREF2'));
+  const rv2 = new THREE.Group(); rv2.add(box(4.6, 2.6, 4.6, MAT.trimBlue, -12, 1.4, 9)); rv2.add(cyl(0.9, 0.9, 0.4, MAT.termScrew, -12, 2.9, 9, 12)); rv2.add(padMesh(-14, 7, 1, 1, 'V5'), padMesh(-12, 7, 1, 1, 'VREF2'), padMesh(-10, 7, 1, 1, 'GND'));
+  const rvl = makeLabel('RV2 1300 RPM', 7, 1.1, { size:42 }); rvl.position.set(-12, 0.07, 5.6); rv2.add(rvl); pickable(rv2, 'RV2 trimmer 10 kΩ', 'Ajuste fino del umbral de 1300 RPM (Vref2 = 1.039 V).'); g.add(rv2);
+  g.add(traceMesh([[-10, 12], [-10, 15.1], [-8.6, 15.1]], 0.6, 'V5'));
+  g.add(soic(12, 17, 14, '74HCT08-Q1', ['RPM_OK', 'TPS_GO', 'AND1', 'AND1', 'CLUTCH_F', 'CH_A', 'GND', 'DRV3', 'CH_A', 'MCU_EN', 'PROFET_IN', 'DRV3', 'WD_OK', 'V5'], 4.4, 1.27, 'U8'));
+  g.add(traceMesh([[-2, 22], [2, 22], [2, 17.7], [8.6, 17.7]], 0.4, 'CLUTCH_F'));
+  g.add(traceMesh([[8.6, 16.4], [7, 16.4], [7, 17.0], [8.6, 17.0]], 0.4, 'AND1'));
+  g.add(traceMesh([[8.6, 18.9], [7.5, 18.9], [7.5, 24], [17.5, 24], [17.5, 18.9], [15.4, 18.9]], 0.4, 'CH_A'));
+  g.add(traceMesh([[15.4, 20.2], [17, 20.2], [17, 21.5], [16.5, 21.5], [16.5, 17.0], [15.4, 17.0]], 0.4, 'DRV3'));
+  g.add(traceMesh([[15.4, 16.4], [18, 16.4], [18, 14]], 0.4, 'PROFET_IN'));
+  g.add(traceMesh([[15.4, 15.1], [19, 15.1], [19, 9], [26, 9]], 0.4, 'WD_OK'));
+  g.add(traceMesh([[15.4, 17.7], [20, 17.7], [20, 20], [25.5, 20]], 0.4, 'MCU_EN'));
+  // ATmega328P TQFP-32
+  const mcu = new THREE.Group(); mcu.add(box(7, 1.0, 7, MAT.bodyDark, 30, 0.6, 20)); for (let i = 0; i < 8; i++){ const o = -2.8 + i*0.8; mcu.add(box(0.4, 0.15, 1.2, MAT.pin, 30 + o, 0.2, 16.0), box(0.4, 0.15, 1.2, MAT.pin, 30 + o, 0.2, 24.0), box(1.2, 0.15, 0.4, MAT.pin, 26.0, 0.2, 20 + o), box(1.2, 0.15, 0.4, MAT.pin, 34.0, 0.2, 20 + o)); }
+  const ml = makeLabel('ATmega328P-15AZ', 6.6, 1.2, { size:46 }); ml.position.set(30, 1.11, 19.5); mcu.add(ml); const ml2 = makeLabel('U9 CANAL B', 6.6, 1.0, { size:44, color:'#9fd3ff' }); ml2.position.set(30, 1.11, 21); mcu.add(ml2);
+  mcu.add(padMesh(25.5, 20, 1.2, 0.5, 'MCU_EN'), padMesh(25.5, 17.6, 1.2, 0.5, 'TPS_F'), padMesh(25.5, 18.4, 1.2, 0.5, 'CLUTCH_F'), padMesh(25.5, 19.2, 1.2, 0.5, 'VFV'), padMesh(34.5, 22.4, 1.2, 0.5, 'GATE'), padMesh(34.5, 18.4, 1.2, 0.5, 'WDI'), padMesh(30, 15.5, 0.5, 1.2, 'TACH_F'), padMesh(31.6, 15.5, 0.5, 1.2, 'ST'), padMesh(28.4, 24.5, 0.5, 1.2, 'XTAL'), padMesh(29.2, 24.5, 0.5, 1.2, 'XTAL'), padMesh(32.4, 24.5, 0.5, 1.2, 'V5'), padMesh(26.8, 24.5, 0.5, 1.2, 'WD_OK'));
+  pickable(mcu, 'U9 ATmega328P-15AZ (AEC-Q100)', 'Canal B: mide periodo TACH, ADC de TPS/embrague/VFV/VBAT/SOL+, plausibilidad, antirrebote 20 ms, watchdog interno 120 ms. Salidas MCU_EN (PB0) y GATE (PB1).'); g.add(mcu);
+  g.add(traceMesh([[25.5, 17.6], [22, 17.6], [22, 26], [-20, 26]], 0.4, 'TPS_F'));
+  g.add(traceMesh([[25.5, 19.2], [23, 19.2], [23, 28], [-22, 28], [-22, 18.9]], 0.4, 'VFV'));
+  g.add(traceMesh([[25.5, 18.4], [24, 18.4], [24, 22], [-2, 22]], 0.4, 'CLUTCH_F'));
+  g.add(traceMesh([[34.5, 22.4], [40, 22.4], [40, 14]], 0.4, 'GATE'));
+  g.add(traceMesh([[31.6, 15.5], [31.6, 13.5], [36, 13.5], [36, 12]], 0.4, 'ST'));
+  g.add(traceMesh([[30, 15.5], [30, 13], [-34.5, 13], [-34.5, 19.9]], 0.4, 'TACH_F'));
+  g.add(traceMesh([[26.8, 24.5], [26.8, 27], [26, 27], [26, 9]], 0.4, 'WD_OK'));
+  g.add(traceMesh([[34.5, 18.4], [37, 18.4], [37, 10], [30, 10]], 0.4, 'WDI'));
+  g.add(traceMesh([[32.4, 24.5], [32.4, 27.5], [38, 27.5], [38, 12]], 0.6, 'V5'));
+  // watchdog TPS3823 (SOT23-5), cristal, LED2, ISP, TPs
+  const wd = new THREE.Group(); wd.add(box(2.9, 1.1, 1.6, MAT.bodyDark, 28, 0.6, 9)); wd.add(padMesh(27, 7.9, 0.5, 0.8, 'WD_OK'), padMesh(28, 7.9, 0.5, 0.8, 'GND'), padMesh(29, 7.9, 0.5, 0.8, 'V5'), padMesh(27.5, 10.1, 0.5, 0.8, 'WDI'), padMesh(28.5, 10.1, 0.5, 0.8, 'V5'));
+  const wl = makeLabel('U10 TPS3823-Q1 WD', 8, 1.0, { size:42 }); wl.position.set(28, 0.07, 6.5); wd.add(wl); pickable(wd, 'U10 TPS3823-50-Q1', 'Supervisor con watchdog externo: reset si el MCU deja de enviar latido en 1.6 s (versión -Q1) / 150 ms (DS1232 en protoboard).'); g.add(wd);
+  const xt = new THREE.Mesh(new THREE.CapsuleGeometry(1.0, 3.6, 4, 12), MAT.xtal); xt.position.set(31, 1.0, 28.5); xt.rotation.z = Math.PI/2; xt.castShadow = true; g.add(xt); pickable(xt, 'Y1 cristal 16 MHz', 'ABLS-16.000MHz AEC-Q200 + 2 × 22 pF.'); const xl = makeLabel('Y1 16MHz', 6, 1.0, { size:42 }); xl.position.set(31, 0.07, 30.5); g.add(xl);
+  g.add(traceMesh([[28.4, 24.5], [28.4, 28.5], [29, 28.5]], 0.3, 'XTAL')); g.add(traceMesh([[29.2, 24.5], [29.2, 26.5], [33.5, 26.5], [33.5, 28.5], [33, 28.5]], 0.3, 'XTAL'));
+  const led2 = smd(44, 12, 3.0, 1.6, MAT.ledR, 'PD3', 'LED2 FALLA', true); led2.children[0].material = MAT.ledR.clone(); registerGlow(led2.children[0], 'PD3', 2.0); g.add(led2);
+  g.add(traceMesh([[34.5, 20.8], [44, 20.8], [44, 14.5]], 0.4, 'PD3'));
+  const isp = new THREE.Group(); isp.add(box(7.6, 2.5, 5, MAT.black, 44, 1.3, 2)); for (let i = 0; i < 6; i++) isp.add(cyl(0.3, 0.3, 4, MAT.pin, 41.5 + (i%3)*2.54, 2.6, 0.73 + Math.floor(i/3)*2.54, 8)); const il = makeLabel('J3 ISP', 5, 1.0, { size:42 }); il.position.set(44, 0.07, -1.2); isp.add(il); pickable(isp, 'J3 ISP 2×3', 'Programación del ATmega (MOSI, MISO, SCK, RESET, 5 V, GND).'); g.add(isp);
+  [['TP1 5V', -40, 4, 'V5'], ['TP2 12V', -34, 4, 'V12'], ['TP3 VFV', -28, 4, 'VFV'], ['TP4 TPS', -22, 4, 'TPS_F'], ['TP5 GO', 0, 0, 'TPS_GO'], ['TP6 RPM', 6, 0, 'RPM_OK'], ['TP7 CH_A', 12, 0, 'CH_A'], ['TP8 DRV', 22, 0, 'PROFET_IN']].forEach(([t, x, z, n]) => { const p = cyl(0.8, 0.8, 0.12, MAT.copper, x, 0.06, z, 16); registerGlow(p, n, 1.3); g.add(p); pickable(p, t, 'Punto de prueba ' + n); const l = makeLabel(t, 6, 1.0, { size:40 }); l.position.set(x, 0.07, z - 1.4); g.add(l); });
+  // condensadores de desacople distribuidos
+  [[-20, 13.5, 'V5'], [-8, 13.5, 'V5'], [8, 13.5, 'V5'], [36, 9, 'V5'], [-26, 14.8, 'V12']].forEach(([x, z, n]) => g.add(smd(x, z, 1.6, 1.0, MAT.ceramic, n, '', false)));
+  // guarda de GND alrededor de la zona analógica
+  const guard = traceMesh([[-46, 12], [-46, 31], [-20, 31], [-20, 12], [-46, 12]], 0.6, 'GND'); g.add(guard);
+}
+
+/* =====================================================================
+   6. VISTA 3: CAMIÓN DE CARGA PESADA EN DESCENSO DE MONTAÑA (unidades: m)
+   ===================================================================== */
+const TV = { world:null, wheels:[], drums:[], smoke:[], stackTips:[], trees:[], posts:[], roadTex:null, plunger:null, coil:null, rocker:null, valve:null, gauge:null, gaugeCtx:null, gaugeTex:null, jakeLamp:null, headlights:[], brakeLamps:[], cliffFog:null };
+function roadTexture(){
+  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 512; const c = cv.getContext('2d');
+  c.fillStyle = '#3a3b3e'; c.fillRect(0, 0, 1024, 512);
+  for (let i = 0; i < 9000; i++){ c.fillStyle = `rgba(${40 + Math.random()*60|0},${40 + Math.random()*60|0},${45 + Math.random()*60|0},0.6)`; c.fillRect(Math.random()*1024, Math.random()*512, 2, 2); }
+  c.fillStyle = '#f2f2f2'; c.fillRect(0, 14, 1024, 10); c.fillRect(0, 488, 1024, 10);
+  c.fillStyle = '#ffd34d'; for (let x = 0; x < 1024; x += 256) c.fillRect(x, 250, 128, 12);
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(30, 1); t.anisotropy = 8; t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function rockTexture(){
+  const cv = document.createElement('canvas'); cv.width = 256; cv.height = 256; const c = cv.getContext('2d'); c.fillStyle = '#6b6560'; c.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 4000; i++){ const v = 70 + Math.random()*80|0; c.fillStyle = `rgba(${v},${v-8},${v-16},0.7)`; c.fillRect(Math.random()*256, Math.random()*256, 3 + Math.random()*6, 2 + Math.random()*4); }
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(12, 4); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function makeWheel(r, w, dual){
+  const g = new THREE.Group(); const tire = std(0x151618, .95), rim = std(0xcfd3d8, .3, .9), hub = std(0x8a8f99, .4, .8);
+  const n = dual ? 2 : 1;
+  for (let i = 0; i < n; i++){
+    const off = dual ? (i === 0 ? -w*0.55 : w*0.55) : 0;
+    const t = cyl(r, r, w, tire, 0, 0, off, 32); t.rotation.x = Math.PI/2; g.add(t);
+    const ri = cyl(r*0.62, r*0.62, w*1.02, rim, 0, 0, off, 24); ri.rotation.x = Math.PI/2; g.add(ri);
+    for (let k = 0; k < 10; k++){ const a = k/10*Math.PI*2; const bolt = cyl(0.025, 0.025, w*1.08, hub, Math.cos(a)*r*0.3, Math.sin(a)*r*0.3, off, 8); bolt.rotation.x = Math.PI/2; g.add(bolt); }
+  }
+  const h = cyl(r*0.22, r*0.22, (dual ? w*2.3 : w*1.15), hub, 0, 0, 0, 16); h.rotation.x = Math.PI/2; g.add(h);
+  return g;
+}
+function makeTruck(){
+  const T = new THREE.Group();
+  const red = new THREE.MeshPhysicalMaterial({ color:0xb81d1d, metalness:.6, roughness:.25, clearcoat:1, clearcoatRoughness:.08 });
+  const chrome = std(0xdde1e6, .12, 1), dark = std(0x1a1c20, .6, .2), white = std(0xe9ecef, .45, .1), rubber = std(0x161718, .95), steel = std(0x9aa0a8, .4, .8);
+  const fwd = 1; // +X es hacia adelante (cuesta abajo)
+  // chasis
+  T.add(box(10.5, 0.25, 1.0, dark, 1.5, 0.95, 0)); T.add(box(10.5, 0.3, 0.12, steel, 1.5, 0.95, 0.45)); T.add(box(10.5, 0.3, 0.12, steel, 1.5, 0.95, -0.45));
+  // cabina (sleeper)
+  const cab = new THREE.Group();
+  cab.add(box(2.6, 2.3, 2.5, red, 5.2, 2.6, 0));                         // cabina principal
+  cab.add(box(2.2, 2.0, 2.5, red, 2.8, 2.45, 0));                        // dormitorio
+  cab.add(box(0.8, 0.6, 2.4, red, 6.4, 1.8, 0));                         // cofre bajo
+  cab.add(box(2.0, 1.1, 2.3, red, 7.2, 1.95, 0));                        // capó
+  const grille = box(0.1, 1.0, 1.6, chrome, 8.22, 1.95, 0); cab.add(grille); for (let i = 0; i < 7; i++) cab.add(box(0.12, 0.05, 1.5, dark, 8.25, 1.55 + i*0.13, 0));
+  cab.add(box(0.3, 0.45, 2.7, chrome, 8.3, 1.25, 0));                    // defensa
+  cab.add(box(0.1, 1.0, 1.9, std(0xaad4ff, .05, .1, { transparent:true, opacity:.55 }), 6.52, 2.95, 0)); // parabrisas
+  [[-1.3], [1.3]].forEach(([z]) => { cab.add(box(1.2, 0.8, 0.08, std(0xaad4ff, .05, .1, { transparent:true, opacity:.5 }), 5.3, 3.0, z)); });
+  cab.add(box(0.1, 0.9, 1.7, std(0xaad4ff, .05, .1, { transparent:true, opacity:.5 }), 1.69, 2.9, 0)); // ventana trasera dormitorio
+  // visera, espejos, escapes, tanques
+  cab.add(box(0.9, 0.08, 2.6, red, 6.55, 3.72, 0));
+  [[-1.5], [1.5]].forEach(([z]) => { cab.add(box(0.1, 0.5, 0.3, chrome, 6.6, 3.0, z)); cab.add(cyl(0.03, 0.03, 0.9, chrome, 6.6, 2.9, z*0.88, 8)); });
+  [[-1.35], [1.35]].forEach(([z]) => { const stack = cyl(0.11, 0.11, 2.6, chrome, 4.0, 3.2, z, 16); cab.add(stack); const tip = new THREE.Vector3(4.0, 4.55, z); TV.stackTips.push(tip); const shield = cyl(0.16, 0.16, 1.2, std(0xcfd3d8, .3, .9, { transparent:true, opacity:.9 }), 4.0, 2.4, z, 16); cab.add(shield); });
+  [[-1.25], [1.25]].forEach(([z]) => { const tank = cyl(0.42, 0.42, 1.8, chrome, 4.1, 1.15, z, 24); tank.rotation.z = Math.PI/2; cab.add(tank); });
+  // faros y luces
+  [[-0.95], [0.95]].forEach(([z]) => { const hl = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.08, 16), std(0xffffff, .2, .1, { emissive:0xfff2c0, emissiveIntensity:1.2 })); hl.rotation.z = Math.PI/2; hl.position.set(8.26, 1.65, z); cab.add(hl); TV.headlights.push(hl); });
+  for (let i = 0; i < 5; i++) cab.add(new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), std(0xffa500, .3, 0, { emissive:0xff8c00, emissiveIntensity:1.5 }))).position.set(6.55, 3.78, -1.0 + i*0.5);
+  // peldaños y guardafangos
+  [[-1.3], [1.3]].forEach(([z]) => { cab.add(box(1.0, 0.05, 0.4, chrome, 5.2, 1.15, z*1.1)); });
+  T.add(cab);
+  // quinta rueda y remolque
+  T.add(cyl(0.5, 0.5, 0.12, dark, 1.2, 1.15, 0, 24));
+  const trailer = new THREE.Group();
+  trailer.add(box(13.6, 2.9, 2.6, white, -5.6, 2.95, 0));
+  trailer.add(box(13.6, 0.2, 2.5, dark, -5.6, 1.45, 0));
+  for (let i = 0; i < 14; i++) trailer.add(box(0.03, 2.7, 2.62, std(0xcfd3d8, .4, .4), -11.9 + i*0.95, 2.95, 0));
+  trailer.add(box(0.06, 2.6, 0.05, dark, -12.45, 2.95, 0)); // junta de puertas
+  const banner = makeLabel('TRANSPORTES  ANDINOS  ·  FRENO DE MOTOR AUTOMÁTICO', 11, 1.2, { color:'#1d3b6b', size:60 }); banner.rotation.set(0, 0, 0); banner.position.set(-5.6, 3.3, 1.31); trailer.add(banner);
+  const banner2 = banner.clone(); banner2.rotation.y = Math.PI; banner2.position.z = -1.31; trailer.add(banner2);
+  trailer.add(box(0.15, 1.1, 0.15, steel, -3.0, 0.75, 0.9), box(0.15, 1.1, 0.15, steel, -3.0, 0.75, -0.9)); // patas
+  [[-0.9, 0.45], [0.9, 0.45], [-0.9, -0.45], [0.9, -0.45]].forEach(([z, s]) => { const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.15, 0.3), std(0xff2a2a, .3, 0, { emissive:0xff0000, emissiveIntensity:.4 })); lamp.position.set(-12.42, 1.7, z); trailer.add(lamp); TV.brakeLamps.push(lamp); });
+  T.add(trailer);
+  // ruedas: delanteras (2), tándem tractor (4 dobles), tándem remolque (4 dobles)
+  const R = 0.52, Wd = 0.3;
+  const wheelDefs = [[7.0, 1.05, false], [7.0, -1.05, false], [1.9, 0.95, true], [1.9, -0.95, true], [0.6, 0.95, true], [0.6, -0.95, true], [-9.3, 0.95, true], [-9.3, -0.95, true], [-10.6, 0.95, true], [-10.6, -0.95, true]];
+  wheelDefs.forEach(([x, z, dual]) => {
+    const w = makeWheel(R, Wd, dual); w.position.set(x, R, z); T.add(w); TV.wheels.push(w);
+    // tambor/disco de freno (visible por dentro) con brillo térmico
+    const drum = cyl(R*0.5, R*0.5, Wd*0.5, std(0x5a5a5a, .5, .7, { emissive:0xff2200, emissiveIntensity:0 }), x, R, z - Math.sign(z)*(dual ? Wd*1.3 : Wd*0.75), 24); drum.rotation.x = Math.PI/2; T.add(drum); TV.drums.push(drum);
+    if (!dual){ const fender = box(1.3, 0.1, 0.5, red, x, R + 0.6, z*1.05); T.add(fender); }
+  });
+  T.add(box(0.5, 0.12, 2.2, dark, 1.25, 0.5, 0)); // eje visual
+  return T;
+}
+function makeJakeCutaway(){
+  // vitrina flotante con la válvula solenoide y el balancín de la válvula de escape
+  const g = new THREE.Group();
+  const frame = box(2.6, 0.06, 1.6, std(0x202830, .6, .3), 0, 0, 0); g.add(frame);
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.7, 1.6), new THREE.MeshPhysicalMaterial({ color:0xbfe6ff, transmission:.92, roughness:.05, thickness:.1, transparent:true, opacity:.25, side:THREE.DoubleSide })); glass.position.y = 0.88; g.add(glass);
+  const title = makeLabel('VÁLVULA SOLENOIDE DEL FRENO DE MOTOR (corte didáctico)', 2.5, 0.22, { size:52 }); title.rotation.set(0, 0, 0); title.position.set(0, 1.85, 0.0); g.add(title);
+  // cuerpo de la válvula
+  const body = box(0.5, 0.55, 0.5, std(0x6f7781, .4, .7), -0.7, 0.33, 0); g.add(body);
+  const coil = cyl(0.19, 0.19, 0.5, std(0xc6702c, .5, .6, { emissive:0x39ff14, emissiveIntensity:0 }), -0.7, 0.88, 0, 24); g.add(coil); TV.coil = coil;
+  const cap = cyl(0.22, 0.22, 0.08, std(0x33373c, .5, .5), -0.7, 1.17, 0, 24); g.add(cap);
+  const plunger = cyl(0.06, 0.06, 0.6, std(0xdfe3e8, .25, .95), -0.7, 1.05, 0, 16); g.add(plunger); TV.plunger = plunger;
+  const spring = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.012, 8, 24), steelMat()); spring.position.set(-0.7, 1.28, 0); spring.rotation.x = Math.PI/2; g.add(spring);
+  const wires = tubeAlong([new THREE.Vector3(-0.5, 1.15, 0.1), new THREE.Vector3(-0.2, 1.3, 0.3), new THREE.Vector3(0.3, 1.45, 0.5)], 0.012, std(0xd81e1e, .5)); g.add(wires);
+  const lblCoil = makeLabel('bobina 24 V · 2 A', 0.9, 0.12, { size:48, color:'#ffd166' }); lblCoil.rotation.set(0, 0, 0); lblCoil.position.set(-0.7, 1.5, 0.3); g.add(lblCoil);
+  // conducto de aceite y pistón esclavo
+  const pipe = tubeAlong([new THREE.Vector3(-0.45, 0.3, 0), new THREE.Vector3(0.0, 0.3, 0), new THREE.Vector3(0.3, 0.3, 0)], 0.035, std(0x3f6ea8, .5, .5, { emissive:0x1f55d8, emissiveIntensity:0 })); g.add(pipe); TV.valve = pipe;
+  const slave = cyl(0.11, 0.11, 0.35, std(0x6f7781, .4, .7), 0.5, 0.45, 0, 20); g.add(slave);
+  // balancín y válvula de escape
+  const rocker = new THREE.Group(); rocker.position.set(0.75, 0.75, 0); rocker.add(box(0.6, 0.06, 0.12, std(0x8a8f99, .4, .8), 0, 0, 0)); rocker.add(cyl(0.04, 0.04, 0.16, std(0x333), 0, 0, 0, 12)); g.add(rocker); TV.rocker = rocker;
+  const stem = cyl(0.025, 0.025, 0.5, std(0xdfe3e8, .25, .95), 1.05, 0.5, 0, 12); g.add(stem); const head = cyl(0.14, 0.14, 0.04, std(0x8a8f99, .4, .8), 1.05, 0.25, 0, 20); g.add(head); TV.valveStem = stem; TV.valveHead = head;
+  const seat = box(0.5, 0.18, 0.5, std(0x4a4f55, .5, .4), 1.05, 0.1, 0); g.add(seat);
+  const lblV = makeLabel('válvula de escape abierta en compresión → frena', 1.6, 0.12, { size:46, color:'#9fd3ff' }); lblV.rotation.set(0, 0, 0); lblV.position.set(0.75, 1.05, 0.4); g.add(lblV);
+  const stateLbl = makeLabel('INACTIVA', 1.0, 0.2, { size:60, color:'#ff6b6b' }); stateLbl.rotation.set(0, 0, 0); stateLbl.position.set(-0.7, 0.05, 0.75); g.add(stateLbl); TV.stateLbl = stateLbl;
+  return g;
+}
+function steelMat(){ return std(0xdfe3e8, .25, .95); }
+function makeGauge(){
+  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 512; const ctx = cv.getContext('2d'); const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.5), new THREE.MeshBasicMaterial({ map:tex, transparent:true })); TV.gauge = mesh; TV.gaugeCtx = ctx; TV.gaugeTex = tex; return mesh;
+}
+function drawGauge(){
+  const c = TV.gaugeCtx; if (!c) return; c.clearRect(0, 0, 1024, 512);
+  c.fillStyle = 'rgba(10,14,20,0.88)'; c.beginPath(); c.roundRect(0, 0, 1024, 512, 40); c.fill(); c.strokeStyle = '#334'; c.lineWidth = 6; c.stroke();
+  function dial(cx, cy, r, val, max, label, unit, redFrom, mark){
+    c.strokeStyle = '#4a5568'; c.lineWidth = 14; c.beginPath(); c.arc(cx, cy, r, Math.PI*0.75, Math.PI*2.25); c.stroke();
+    if (redFrom != null){ c.strokeStyle = '#ff3b3b'; c.beginPath(); c.arc(cx, cy, r, Math.PI*0.75 + 1.5*Math.PI*redFrom/max, Math.PI*2.25); c.stroke(); }
+    if (mark != null){ const a = Math.PI*0.75 + 1.5*Math.PI*mark/max; c.strokeStyle = '#ffb020'; c.lineWidth = 8; c.beginPath(); c.moveTo(cx + Math.cos(a)*(r-28), cy + Math.sin(a)*(r-28)); c.lineTo(cx + Math.cos(a)*(r+14), cy + Math.sin(a)*(r+14)); c.stroke(); }
+    c.fillStyle = '#cfe3f5'; c.font = 'bold 30px Arial'; c.textAlign = 'center'; for (let i = 0; i <= 5; i++){ const a = Math.PI*0.75 + 1.5*Math.PI*i/5; c.fillText(Math.round(max*i/5/(max >= 1000 ? 100 : 1)), cx + Math.cos(a)*(r-50), cy + Math.sin(a)*(r-50) + 10); }
+    const a = Math.PI*0.75 + 1.5*Math.PI*Math.min(1, val/max); c.strokeStyle = '#ff6b35'; c.lineWidth = 8; c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + Math.cos(a)*(r-20), cy + Math.sin(a)*(r-20)); c.stroke();
+    c.fillStyle = '#222'; c.beginPath(); c.arc(cx, cy, 16, 0, 7); c.fill();
+    c.fillStyle = '#fff'; c.font = 'bold 44px Arial'; c.fillText(Math.round(val) + ' ' + unit, cx, cy + r*0.62); c.fillStyle = '#8fa3b8'; c.font = '26px Arial'; c.fillText(label, cx, cy + r*0.62 + 34);
+  }
+  dial(250, 250, 190, SIM.rpm, 3000, 'RPM ×100', '', 2500, 1300);
+  dial(774, 250, 190, TRUCK.v*3.6, 120, 'VELOCIDAD', 'km/h', null, null);
+  // lámparas
+  const on = SIM.plunger > 0.5;
+  c.fillStyle = on ? '#39ff14' : '#243024'; c.beginPath(); c.roundRect(432, 60, 160, 54, 12); c.fill(); c.fillStyle = on ? '#002' : '#567'; c.font = 'bold 28px Arial'; c.fillText('JAKE ON', 512, 97);
+  const hot = TRUCK.brakeTemp > 300; c.fillStyle = hot ? ((Date.now()/300|0)%2 ? '#ff3b3b' : '#5a1a1a') : '#302424'; c.beginPath(); c.roundRect(432, 130, 160, 54, 12); c.fill(); c.fillStyle = hot ? '#fff' : '#765'; c.fillText('FRENOS ' + Math.round(TRUCK.brakeTemp) + '°C', 512, 167);
+  const flt = SIM.faultLed; c.fillStyle = flt ? '#ffb020' : '#2e2a20'; c.beginPath(); c.roundRect(432, 200, 160, 54, 12); c.fill(); c.fillStyle = flt ? '#000' : '#776'; c.fillText(flt ? 'FALLA SIST.' : 'SIST. OK', 512, 237);
+  c.fillStyle = '#cfe3f5'; c.font = 'bold 34px Arial'; c.fillText('MARCHA ' + (TRUCK.gear + 1) + 'ª', 512, 320); c.font = '26px Arial'; c.fillText('TPS ' + SIM.vTps.toFixed(2) + ' V · EMBRAGUE ' + (SIM.clutch ? 'PISADO' : 'SUELTO'), 512, 360);
+  c.fillText('PENDIENTE ' + TRUCK.slope + ' % · ' + Math.round(TRUCK.mass/1000) + ' t', 512, 400);
+  TV.gaugeTex.needsUpdate = true;
+}
+function buildTruckScene(){
+  const g = G.truck;
+  scene.fog = null;
+  const hemi = new THREE.HemisphereLight(0xbfd8ff, 0x4d5a40, 0.9); g.add(hemi);
+  const sun = new THREE.DirectionalLight(0xfff1dc, 2.6); sun.position.set(-30, 60, 40); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -40; sun.shadow.camera.right = 40; sun.shadow.camera.top = 40; sun.shadow.camera.bottom = -40; sun.shadow.camera.near = 10; sun.shadow.camera.far = 200; sun.shadow.bias = -0.0008; g.add(sun);
+  // cielo
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 32, 16), new THREE.ShaderMaterial({ side:THREE.BackSide, uniforms:{}, vertexShader:'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }', fragmentShader:'varying vec3 vP; void main(){ float h = normalize(vP).y; vec3 top = vec3(0.16,0.36,0.72); vec3 hor = vec3(0.78,0.86,0.95); vec3 c = mix(hor, top, clamp(h*1.6,0.0,1.0)); gl_FragColor = vec4(c,1.0); }' })); g.add(sky);
+  const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(18, 16, 16), new THREE.MeshBasicMaterial({ color:0xfff6d0 })); sunDisc.position.set(-300, 420, 500); g.add(sunDisc);
+  // mundo inclinado (pendiente)
+  const world = new THREE.Group(); g.add(world); TV.world = world;
+  const roadTex = roadTexture(); TV.roadTex = roadTex;
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(600, 11), std(0xffffff, .9, 0, { map:roadTex })); road.rotation.x = -Math.PI/2; road.receiveShadow = true; world.add(road);
+  const shoulder = new THREE.Mesh(new THREE.PlaneGeometry(600, 16), std(0x7a6f5a, .95)); shoulder.rotation.x = -Math.PI/2; shoulder.position.y = -0.02; world.add(shoulder);
+  // montaña (lado izquierdo, z negativo) y barranco (lado derecho)
+  const rockTex = rockTexture();
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(600, 70), std(0xb3a994, .9, 0, { map:rockTex })); wall.position.set(0, 26.8, -31.6); wall.rotation.x = -0.7; wall.receiveShadow = true; world.add(wall);
+  const grass = new THREE.Mesh(new THREE.PlaneGeometry(600, 3.5), std(0x5e7a3c, .95)); grass.rotation.x = -Math.PI/2; grass.position.set(0, 0.01, -7.6); world.add(grass);
+  for (let i = 0; i < 10; i++){ const h = 160 + Math.random()*120; const m = new THREE.Mesh(new THREE.ConeGeometry(120 + Math.random()*60, h, 7), std(0x6e7a86, .95)); m.position.set(-450 + i*110, h/2 - 30, -330 - Math.random()*120); world.add(m); }
+  const cliff = new THREE.Mesh(new THREE.PlaneGeometry(600, 80), std(0x5e5a52, .95, 0, { map:rockTex })); cliff.position.set(0, -40, 10.5); cliff.rotation.x = -0.3; world.add(cliff);
+  const valley = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), std(0x4b6b3a, .95)); valley.rotation.x = -Math.PI/2; valley.position.set(0, -78, 600); world.add(valley);
+  for (let i = 0; i < 14; i++){ const h = 120 + Math.random()*180; const m = new THREE.Mesh(new THREE.ConeGeometry(90 + Math.random()*80, h, 7), std(0x5f6d7a, .95)); m.position.set(-500 + i*85 + (Math.random()-0.5)*40, -78 + h/2, 420 + Math.random()*250); world.add(m); const snow = new THREE.Mesh(new THREE.ConeGeometry(28, h*0.25, 7), std(0xf4f7fb, .9)); snow.position.set(m.position.x, m.position.y + h/2 - h*0.125, m.position.z); world.add(snow); }
+  // guardarraíl (lado del barranco)
+  for (let i = 0; i < 80; i++){ const post = box(0.12, 0.8, 0.12, std(0x8a8f99, .5, .7), -200 + i*5, 0.4, 7.2); world.add(post); TV.posts.push(post); }
+  const rail = box(400, 0.3, 0.06, std(0xc0c4c9, .35, .9), 0, 0.75, 7.25); world.add(rail); TV.rail = rail;
+  // árboles (lado de la montaña) y señales
+  const treeMat = std(0x2f6b2f, .9), trunkMat = std(0x5b3a1e, .9);
+  for (let i = 0; i < 70; i++){ const t = new THREE.Group(); const s = 0.8 + Math.random()*0.8; t.add(cyl(0.12*s, 0.18*s, 1.5*s, trunkMat, 0, 0.75*s, 0, 8)); t.add(new THREE.Mesh(new THREE.ConeGeometry(1.2*s, 3.2*s, 8), treeMat)).position.y = 2.9*s; const tz = -10.5 - Math.random()*7; t.position.set(-200 + i*5.7 + Math.random()*3, (-tz - 9)*1.19 - 0.3, tz); t.children.forEach(c => c.castShadow = true); world.add(t); TV.trees.push(t); }
+  const sign = new THREE.Group(); sign.add(cyl(0.05, 0.05, 2.6, std(0x888), 0, 1.3, 0, 8)); const plate = makeLabel('⚠ PENDIENTE PELIGROSA 6 km · USE FRENO DE MOTOR', 3.0, 0.9, { bg:'#ffb020', color:'#000', size:54 }); plate.rotation.set(0, Math.PI/2, 0); plate.position.set(0, 2.9, 0); sign.add(plate); sign.position.set(40, 0, -8); world.add(sign); TV.sign = sign;
+  // camión y accesorios
+  const truck = makeTruck(); world.add(truck); TV.truck = truck;
+  const cut = makeJakeCutaway(); cut.position.set(6.6, 4.9, 0); world.add(cut); TV.cut = cut;
+  const gauge = makeGauge(); gauge.position.set(2.5, 5.8, 1.6); gauge.rotation.y = 0.2; world.add(gauge);
+  // humo de escape (sprites)
+  const smokeTex = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c = cv.getContext('2d'); const gr = c.createRadialGradient(32, 32, 2, 32, 32, 30); gr.addColorStop(0, 'rgba(200,200,200,0.9)'); gr.addColorStop(1, 'rgba(200,200,200,0)'); c.fillStyle = gr; c.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(cv); })();
+  for (let i = 0; i < 90; i++){ const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:smokeTex, transparent:true, opacity:0, depthWrite:false, color:0x8a8f99 })); sp.visible = false; world.add(sp); TV.smoke.push({ sp, life:0, vel:new THREE.Vector3() }); }
+  pickable(truck, 'Camión tractor + remolque (36 t)', 'Tractocamión 6×4 con remolque de 13.6 m. Las ruedas giran con la velocidad real; los tambores de freno brillan rojo al calentarse (brake fade).');
+  pickable(cut, 'Válvula solenoide del freno de motor', 'Al energizarse (24 V, 2 A) el émbolo baja, el aceite a presión actúa sobre el pistón esclavo y abre la válvula de escape cerca del PMS: el motor se convierte en compresor y frena el camión.');
+}
+let smokeAcc = 0;
+function updateTruckVisuals(dt){
+  if (!TV.world) return;
+  const theta = Math.atan(TRUCK.slope/100); TV.world.rotation.z = -theta;
+  const v = SIM.mode === 'drive' ? TRUCK.v : (SIM.rpm/60/3.7/TRUCK.ratios[TRUCK.gear]*2*Math.PI*TRUCK.rWheel);
+  // ruedas y carretera
+  TV.wheels.forEach(w => { w.rotation.z -= v*dt/0.52; });
+  TV.roadTex.offset.x += v*dt/20;
+  const move = -v*dt;
+  TV.trees.forEach(t => { t.position.x += move; if (t.position.x < -200) t.position.x += 400; });
+  TV.posts.forEach(p => { p.position.x += move; if (p.position.x < -200) p.position.x += 400; });
+  TV.sign.position.x += move; if (TV.sign.position.x < -120) TV.sign.position.x += 300;
+  // brillo térmico de frenos y luces de freno
+  const heat = Math.max(0, Math.min(1, (TRUCK.brakeTemp - 150)/450));
+  TV.drums.forEach(d => { d.material.emissiveIntensity = heat*2.2; d.material.color.setRGB(0.35 + heat*0.3, 0.35 - heat*0.2, 0.35 - heat*0.25); });
+  TV.brakeLamps.forEach(l => l.material.emissiveIntensity = TRUCK.brakePedal > 0.05 ? 2.5 : 0.4);
+  // solenoide: émbolo, bobina, balancín
+  const p = SIM.plunger;
+  TV.plunger.position.y = 1.05 - 0.14*p; TV.coil.material.emissiveIntensity = SIM.profetOn && SIM.q1On ? 0.9*Math.min(1, SIM.iSol/I_NOM()) : 0;
+  TV.valve.material.emissiveIntensity = p*0.8; TV.rocker.rotation.z = -0.25*p; TV.valveStem.position.y = 0.5 - 0.1*p; TV.valveHead.position.y = 0.25 - 0.1*p;
+  if (TV.stateOn !== (p > 0.5)){ TV.stateOn = p > 0.5; const nl = makeLabel(TV.stateOn ? 'ACTIVA · 2.0 A' : 'INACTIVA', 1.0, 0.2, { size:60, color: TV.stateOn ? '#39ff14' : '#ff6b6b' }); nl.rotation.set(0, 0, 0); nl.position.copy(TV.stateLbl.position); TV.cut.remove(TV.stateLbl); TV.cut.add(nl); TV.stateLbl = nl; }
+  // humo
+  smokeAcc += dt * (SIM.rpm > 200 ? (8 + SIM.rpm/60 + (p > 0.5 ? 40 : 0) + SIM.tps*6) : 0);
+  while (smokeAcc >= 1){ smokeAcc -= 1; const s = TV.smoke.find(s => s.life <= 0); if (!s) break; const tip = TV.stackTips[Math.random() < 0.5 ? 0 : 1]; s.sp.position.copy(tip); s.sp.position.applyMatrix4(TV.truck.matrixWorld).applyMatrix4(TV.world.matrixWorld.clone().invert()); s.life = 1.6 + Math.random()*0.8; s.sp.scale.set(0.3, 0.3, 1); s.sp.visible = true; s.vel.set(-v*0.6 - 1 + Math.random(), 2.5 + Math.random(), (Math.random()-0.5)*0.6); s.sp.material.color.setHex(p > 0.5 ? 0x5a5e66 : 0x9a9ea6); }
+  TV.smoke.forEach(s => { if (s.life > 0){ s.life -= dt; s.sp.position.addScaledVector(s.vel, dt); s.sp.scale.addScalar(dt*1.8); s.sp.material.opacity = Math.max(0, Math.min(0.55, s.life*0.5)); if (s.life <= 0) s.sp.visible = false; } });
+  drawGauge();
+}
+
+/* =====================================================================
+   7. HUD, VISTAS, INTERACCIÓN Y BUCLE PRINCIPAL
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const VIEWS = {
+  proto:{ pos:[0, 135, 165], tgt:[0, 0, 0], min:15, max:600, bg:0x1b1f26 },
+  pcb:{ pos:[0, 95, 105], tgt:[0, 0, 0], min:8, max:400, bg:0x14181f },
+  truck:{ pos:[19, 7.5, 17], tgt:[2, 2.6, 0], min:1.5, max:260, bg:0x9fc0e8 }
+};
+let currentView = 'proto';
+function setView(name){
+  currentView = name; Object.keys(G).forEach(k => G[k].visible = (k === name));
+  const v = VIEWS[name]; camera.position.set(...v.pos); controls.target.set(...v.tgt); controls.minDistance = v.min; controls.maxDistance = v.max; controls.update();
+  scene.background = new THREE.Color(v.bg); scene.fog = name === 'truck' ? new THREE.Fog(0xb8d0ea, 120, 700) : null;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === name));
+  camera.near = name === 'truck' ? 0.1 : 0.5; camera.far = name === 'truck' ? 3000 : 2000; camera.updateProjectionMatrix();
+}
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => setView(t.dataset.view)));
+
+// ---- controles ----
+const sRpm = $('sRpm'), sTps = $('sTps');
+sRpm.addEventListener('input', () => { if (SIM.mode === 'manual') SIM.rpm = +sRpm.value; });
+sTps.addEventListener('input', () => { if (SIM.mode === 'manual') SIM.tps = +sTps.value; });
+$('bRelease').addEventListener('click', () => { SIM.tps = 0.45; sTps.value = 0.45; toast('Pedal suelto: TPS = 0.45 V'); });
+$('bNoise').addEventListener('click', e => { SIM.noise = !SIM.noise; e.target.classList.toggle('on', SIM.noise); toast(SIM.noise ? 'Ruido eléctrico de ±0.35 V inyectado en el TPS: la histéresis de 0.10 V evita el parpadeo' : 'Ruido desactivado'); });
+$('clutchSw').querySelectorAll('button').forEach(b => b.addEventListener('click', () => setClutch(b.dataset.c === '1')));
+function setClutch(p){ SIM.clutch = p; $('clutchSw').querySelectorAll('button').forEach(b => { b.className = (b.dataset.c === '1') === p ? (p ? 'onbad' : 'on') : ''; }); }
+$('faults').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+  SIM.fault = b.dataset.f; $('faults').querySelectorAll('button').forEach(x => x.classList.toggle('sel', x === b));
+  const msgs = { none:'Sin fallas: operación normal', tps_gnd:'TPS en corto a masa (0.05 V): la ventana 0.20 V bloquea el freno (no se activa por error)', tps_open:'Cable TPS roto: el pull-down de 220 kΩ lleva la entrada a 0 V → bloqueo seguro', tps_5v:'TPS en corto a +5 V: fuera de la ventana 4.80 V → bloqueo', cl_5v:'Embrague en corto a +5 V: el canal analógico lo ve "suelto" pero el MCU rechaza la lectura fuera de 3.1–3.9 V → bloqueo 2oo2', cl_open:'Cable del embrague roto: 0 V = "pisado" → bloqueo', mcu_hang:'Firmware colgado: el DS1232 deja de recibir latido y resetea al MCU en 150 ms → MCU_EN y WD_OK a 0', sol_short:'Solenoide en corto: el PROFET se autoprotege (ST = 0) y el MCU bloquea tras 300 ms', profet_stuck:'PROFET pegado en ON: SOL+ sube sin mando → el MCU abre Q1 (lado bajo) y la válvula no recibe corriente', tach_lost:'Señal TACH perdida: VFV = 0 → RPM_OK = 0 → el sistema no actúa (degradado seguro)' };
+  toast(msgs[SIM.fault] || '', 6000);
+}));
+$('bAuto').addEventListener('click', e => { SIM.autoEnabled = !SIM.autoEnabled; e.target.textContent = 'SISTEMA AUTO: ' + (SIM.autoEnabled ? 'ON' : 'OFF'); e.target.classList.toggle('on', SIM.autoEnabled); e.target.classList.toggle('danger', !SIM.autoEnabled); });
+$('bSound').addEventListener('click', e => { initAudio(); AUDIO.ctx.resume(); AUDIO.on = !AUDIO.on; e.target.textContent = AUDIO.on ? '🔊 Sonido' : '🔇 Sonido'; e.target.classList.toggle('on', AUDIO.on); });
+$('bPanels').addEventListener('click', () => document.body.classList.toggle('hidepanel'));
+$('bHelp').addEventListener('click', () => { const h = $('help'); h.style.display = h.style.display === 'block' ? 'none' : 'block'; });
+$('modeSw').querySelectorAll('button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+function setMode(m){
+  SIM.mode = m; $('modeSw').querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.mode === m));
+  const drive = m === 'drive'; $('driveBox').style.display = drive ? 'block' : 'none'; sRpm.disabled = drive; sTps.disabled = drive;
+  if (drive){ resetTruck(); setView('truck'); toast('Modo conducción: el camión baja una pendiente del 6 % en 7ª. Mantén W para acelerar, S para el freno de servicio, ↑/↓ cambian de marcha.', 7000); }
+}
+$('sSlope').addEventListener('input', e => { TRUCK.slope = +e.target.value; $('vSlope').textContent = TRUCK.slope + ' %'; });
+$('sMass').addEventListener('input', e => { TRUCK.mass = +e.target.value*1000; $('vMass').textContent = e.target.value + ' t'; });
+$('bGearUp').addEventListener('click', () => shiftGear(1)); $('bGearDn').addEventListener('click', () => shiftGear(-1));
+function shiftGear(d){ const ng = Math.max(0, Math.min(9, TRUCK.gear + d)); if (ng === TRUCK.gear) return; TRUCK.gear = ng; $('vGear').textContent = (ng+1) + 'ª'; toast('Marcha ' + (ng+1) + 'ª (relación ' + TRUCK.ratios[ng] + ':1)'); }
+const holdBtn = (id, on, off) => { const b = $(id); ['pointerdown', 'touchstart'].forEach(ev => b.addEventListener(ev, e => { e.preventDefault(); on(); b.classList.add('on'); })); ['pointerup', 'pointerleave', 'touchend'].forEach(ev => b.addEventListener(ev, () => { off(); b.classList.remove('on'); })); };
+holdBtn('bAccel', () => TRUCK.accel = true, () => TRUCK.accel = false);
+holdBtn('bBrake', () => TRUCK.brakePedal = 0.6, () => TRUCK.brakePedal = 0);
+$('bReset').addEventListener('click', () => { resetTruck(); $('vGear').textContent = '7ª'; toast('Descenso reiniciado a 40 km/h'); });
+window.addEventListener('keydown', e => {
+  if (e.repeat && !['w', 's'].includes(e.key.toLowerCase())) return;
+  const k = e.key.toLowerCase();
+  if (k === 'w'){ TRUCK.accel = true; $('bAccel').classList.add('on'); } if (k === 's'){ TRUCK.brakePedal = 0.6; $('bBrake').classList.add('on'); }
+  if (k === 'c') setClutch(!SIM.clutch); if (e.key === 'ArrowUp'){ shiftGear(1); e.preventDefault(); } if (e.key === 'ArrowDown'){ shiftGear(-1); e.preventDefault(); }
+  if (k === '1') setView('proto'); if (k === '2') setView('pcb'); if (k === '3') setView('truck'); if (k === 'h') $('bHelp').click();
+});
+window.addEventListener('keyup', e => { const k = e.key.toLowerCase(); if (k === 'w'){ TRUCK.accel = false; $('bAccel').classList.remove('on'); } if (k === 's'){ TRUCK.brakePedal = 0; $('bBrake').classList.remove('on'); } });
+let toastT = 0; function toast(msg, ms = 3500){ const t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toastT); toastT = setTimeout(() => t.style.display = 'none', ms); }
+
+// ---- cadena de señal ----
+const CHAIN = [
+  ['Señal TACH (f)', () => `${(SIM.fault === 'tach_lost' ? 0 : SIM.rpm*SIM.ppr/60).toFixed(1)} Hz`, () => SIM.rpm > 0 && SIM.fault !== 'tach_lost' ? 'on' : ''],
+  ['VFV (LM2907 pin 4)', () => SIM.vfvDisp.toFixed(3) + ' V', () => 'ana'],
+  ['RPM_OK (U5-B ≥1300)', () => SIM.rpmOk ? '1' : '0', () => SIM.rpmOk ? 'ok' : ''],
+  ['TPS_F filtrado', () => SIM.vTps.toFixed(3) + ' V', () => 'ana'],
+  ['TPS < 1.35 V (U5-A)', () => SIM.tpsLow ? '1' : '0', () => SIM.tpsLow ? 'ok' : ''],
+  ['Ventana 0.20–4.80 V (U6)', () => SIM.tpsOk ? 'OK' : 'FALLA', () => SIM.tpsOk ? 'ok' : 'bad'],
+  ['CLUTCH_F', () => SIM.vClutch.toFixed(2) + ' V', () => SIM.clutchHi ? 'ok' : (SIM.fault === 'cl_5v' ? 'bad' : '')],
+  ['CH_A (canal analógico)', () => SIM.chA ? '1' : '0', () => SIM.chA ? 'ok' : ''],
+  ['Canal B: RPM medido (MCU)', () => Math.round(SIM.mcu.rpm) + ' RPM', () => SIM.mcu.rpmOk ? 'ok' : ''],
+  ['MCU_EN (PB0)', () => SIM.mcu.en ? '1' : '0', () => SIM.mcu.en ? 'ok' : (SIM.mcu.latched ? 'bad' : '')],
+  ['WD_OK (DS1232 /RST)', () => SIM.wdOk ? '1' : 'RESET', () => SIM.wdOk ? 'ok' : 'bad'],
+  ['PROFET IN (74HCT08 Y4)', () => SIM.drv ? '1' : '0', () => SIM.drv ? 'ok' : ''],
+  ['PROFET ST (diagnóstico)', () => SIM.stOk ? 'OK' : 'FALLA', () => SIM.stOk ? 'ok' : 'bad'],
+  ['Q1 lado bajo (PB1)', () => SIM.q1On ? 'CERRADO' : 'ABIERTO', () => SIM.q1On ? 'ok' : ''],
+  ['SOL+ (sensado A3)', () => SIM.vSol.toFixed(1) + ' V', () => SIM.vSol > 6 ? 'on' : ''],
+  ['LED FALLA (PD3)', () => SIM.faultLed ? 'ENCENDIDO' : 'apagado', () => SIM.faultLed ? 'bad' : ''],
+];
+const chainEl = $('chain'); const chainRows = CHAIN.map(([n]) => { const d = document.createElement('div'); d.className = 'it'; d.innerHTML = `<span class="dot"></span><span class="n">${n}</span><span class="v"></span>`; chainEl.appendChild(d); return d; });
+let hudAcc = 0, prevAct = false, prevFaultLed = false;
+function updateHUD(){
+  $('vRpm').textContent = Math.round(SIM.rpm) + ' RPM'; $('vTps').textContent = SIM.tps.toFixed(2) + ' V';
+  if (SIM.mode === 'drive'){ sRpm.value = Math.min(2500, SIM.rpm); sTps.value = SIM.tps; }
+  chainRows.forEach((d, i) => { const [, fv, fc] = CHAIN[i]; d.children[0].className = 'dot ' + fc(); d.children[2].textContent = fv(); });
+  const act = SIM.plunger > 0.5; const a = $('actuator'); a.className = act ? 'on' : 'off';
+  $('actTxt').textContent = act ? 'VÁLVULA ACTIVA · FRENO DE MOTOR' : (SIM.iSol > 0.1 ? 'CONMUTANDO…' : 'INACTIVA');
+  $('actSub').textContent = `I = ${SIM.iSol.toFixed(2)} A · émbolo ${Math.round(SIM.plunger*100)} % · ${SIM.vSol.toFixed(0)} V en SOL+`;
+  const T = SIM.timing; $('tOn').textContent = T.on != null ? T.on.toFixed(0) + ' ms' : '— ms'; $('tOff').textContent = T.off != null ? T.off.toFixed(0) + ' ms' : '— ms';
+  $('tMcu').textContent = T.mcuMs != null ? T.mcuMs.toFixed(0) + ' ms' : '— ms'; $('tSol').textContent = T.solMs != null ? T.solMs.toFixed(0) + ' ms' : '— ms';
+  $('tV').textContent = (TRUCK.v*3.6).toFixed(1) + ' km/h'; $('tG').textContent = (TRUCK.gear+1) + 'ª'; $('tR').textContent = Math.round(SIM.rpm) + ' RPM';
+  $('tFe').textContent = (TRUCK.fEngine/1000).toFixed(1) + ' kN'; $('tT').textContent = Math.round(TRUCK.brakeTemp) + ' °C'; $('tEf').textContent = Math.round(TRUCK.eff*100) + ' %';
+  $('barT').style.width = Math.min(100, (TRUCK.brakeTemp/700)*100) + '%';
+  const al = $('alert');
+  if (SIM.mode === 'drive' && TRUCK.overspeed){ al.className = 'red'; al.textContent = '⚠ SOBRERREVOLUCIÓN DEL MOTOR · CAMBIA A UNA MARCHA MÁS ALTA'; al.style.display = 'block'; }
+  else if (SIM.mode === 'drive' && TRUCK.brakeTemp > 400){ al.className = 'red'; al.textContent = '🔥 FRENOS RECALENTADOS · BRAKE FADE · EFICACIA ' + Math.round(TRUCK.eff*100) + ' %'; al.style.display = 'block'; }
+  else if (SIM.faultText){ al.className = 'amber'; al.textContent = '⚠ ' + SIM.faultText; al.style.display = 'block'; }
+  else al.style.display = 'none';
+  if (act !== prevAct){ prevAct = act; toast(act ? `Freno de motor ACTIVADO en ${T.on != null ? T.on.toFixed(0) : '—'} ms (canal B ${T.mcuMs != null ? T.mcuMs.toFixed(0) : '—'} ms + solenoide ${T.solMs != null ? T.solMs.toFixed(0) : '—'} ms)` : 'Freno de motor desactivado', 4000); }
+  const cond = `RPM ${SIM.rpm >= 1300 ? '≥' : '<'} 1300 · TPS ${SIM.vTps.toFixed(2)} V ${SIM.tpsLow ? '(suelto)' : '(pisado)'} · embrague ${SIM.clutch ? 'PISADO' : 'suelto'}`;
+  $('msg').textContent = SIM.mode === 'drive' ? `${cond}. Fuerza gravitatoria ${(TRUCK.mass*9.81*Math.sin(Math.atan(TRUCK.slope/100))/1000).toFixed(1)} kN vs. freno motor ${(TRUCK.fEngine/1000).toFixed(1)} kN + servicio ${(TRUCK.fService/1000).toFixed(1)} kN.` : cond;
+}
+
+// ---- tooltip por raycast ----
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(); let hoverT = 0; const tip = $('tooltip');
+canvas.addEventListener('pointermove', e => { mouse.set((e.clientX/window.innerWidth)*2 - 1, -(e.clientY/window.innerHeight)*2 + 1); tip.style.left = (e.clientX + 14) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; hoverT = performance.now(); });
+function doPick(){
+  ray.setFromCamera(mouse, camera); const list = pickables.filter(o => o.visible && G[currentView].getObjectById(o.id)); const hit = ray.intersectObjects(list, false)[0];
+  if (hit){ const p = hit.object.userData.pick; const net = Object.values(SIM.nets); tip.innerHTML = `<b>${p.name}</b><div class="m">${p.desc.replace(/\n/g, '<br>')}</div>`; tip.style.display = 'block'; } else tip.style.display = 'none';
+}
+window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+
+// ---- construcción y bucle ----
+buildProtoboard(); buildPCB(); buildTruckScene(); setView('proto'); setClutch(false);
+toast('Bienvenido. Mueve los deslizadores: con RPM ≥ 1300, TPS < 1.35 V y embrague suelto la válvula se activa y las pistas se iluminan. Pulsa H para ayuda.', 8000);
+let last = performance.now(), simAcc = 0, pickAcc = 0;
+function loop(now){
+  requestAnimationFrame(loop);
+  let dt = Math.min(0.1, (now - last)/1000); last = now;
+  simAcc += dt; let steps = 0;
+  while (simAcc >= 0.001 && steps < 120){ if (SIM.mode === 'drive' && steps % 5 === 0) stepTruck(0.005); stepSim(0.001); simAcc -= 0.001; steps++; }
+  if (steps >= 120) simAcc = 0;
+  updateNets(); applyGlow(); updateAudio(dt);
+  if (currentView === 'truck') updateTruckVisuals(dt);
+  hudAcc += dt; if (hudAcc > 0.08){ hudAcc = 0; updateHUD(); }
+  pickAcc += dt; if (pickAcc > 0.1){ pickAcc = 0; doPick(); }
+  controls.update(); renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

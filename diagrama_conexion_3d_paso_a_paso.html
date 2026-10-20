@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagrama de conexión 3D paso a paso · Freno de motor automático</title>
+<style>
+:root{--bg:#0b0f14;--panel:rgba(14,20,28,.9);--line:rgba(120,160,200,.18);--txt:#e6eef7;--muted:#8fa3b8;--acc:#ff5a00;--acc2:#00b7ff;--ok:#39ff14;--mono:Consolas,"Courier New",monospace}
+*{box-sizing:border-box} html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden}
+canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+#top{position:fixed;top:0;left:0;right:0;height:54px;display:flex;align-items:center;gap:8px;padding:0 12px;background:linear-gradient(180deg,rgba(8,12,18,.96),rgba(8,12,18,.7));border-bottom:1px solid var(--line);z-index:20;backdrop-filter:blur(8px)}
+#top .brand{font-weight:700;font-size:13px;line-height:1.1} #top .brand small{display:block;color:var(--muted);font-weight:400;font-size:11px}
+.btn{background:rgba(255,255,255,.07);border:1px solid var(--line);color:#fff;padding:7px 12px;border-radius:9px;cursor:pointer;font-size:12.5px;white-space:nowrap} .btn:hover{background:rgba(255,255,255,.14)} .btn.on{background:rgba(255,90,0,.25);border-color:var(--acc)} .btn.big{font-size:14px;padding:9px 16px;font-weight:700}
+#side{position:fixed;top:62px;left:12px;bottom:12px;width:320px;background:var(--panel);border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;z-index:15;backdrop-filter:blur(10px)}
+#search{margin:10px;padding:7px 10px;border-radius:8px;border:1px solid #334;background:#0b0f14;color:#fff;font-size:12px}
+#list{flex:1;overflow:auto;font-size:12px;scrollbar-width:thin} #list .ph{padding:8px 12px 4px;color:var(--acc2);font-weight:700;font-size:11px;letter-spacing:.8px;text-transform:uppercase;position:sticky;top:0;background:#0f151d}
+#list .it{padding:5px 10px 5px 34px;cursor:pointer;border-left:3px solid transparent;position:relative;line-height:1.3} #list .it:hover{background:rgba(255,255,255,.06)}
+#list .it .n{position:absolute;left:9px;top:5px;color:var(--muted);font-family:var(--mono);font-size:11px} #list .it b{color:#fff} #list .it span{color:var(--muted);font-family:var(--mono);font-size:11px}
+#list .it.cur{background:rgba(255,90,0,.22);border-left-color:var(--acc)} #list .it.done{opacity:.5} #list .it.done .n::before{content:"✓";color:var(--ok);margin-right:3px}
+#card{position:fixed;right:12px;top:62px;width:400px;max-height:calc(100% - 150px);overflow:auto;background:var(--panel);border:1px solid var(--acc);border-radius:14px;padding:12px 14px;z-index:15;font-size:13px;line-height:1.45;backdrop-filter:blur(10px)}
+#card .t{font-size:16px;font-weight:800;color:#ffb380} #card .sub{color:var(--muted);font-size:12px} #card .ins{margin:6px 0;font-size:14px;background:rgba(255,90,0,.12);padding:8px 10px;border-radius:8px;border-left:3px solid var(--acc)}
+#card table{border-collapse:collapse;margin-top:6px;font-size:12px;width:100%} #card td,#card th{border:1px solid rgba(255,255,255,.12);padding:3px 7px;text-align:left;vertical-align:top} #card th{color:#ffb380}
+#card .hole{font-family:var(--mono);font-weight:700;color:#fff;background:#7a3200;padding:1px 7px;border-radius:4px;font-size:13px} #card .warn{color:#ffd166;margin-top:6px} #card .net{font-family:var(--mono);color:#9fd3ff}
+#nav{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 10px;z-index:16}
+#prog{position:fixed;left:344px;right:424px;bottom:76px;height:6px;background:#1a222c;border-radius:3px;z-index:16;overflow:hidden} #prog i{display:block;height:100%;background:linear-gradient(90deg,#ff5a00,#ffb020);width:0}
+#counter{font-family:var(--mono);font-size:14px;color:#fff;min-width:110px;text-align:center}
+#legend{position:fixed;right:12px;bottom:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:11.5px;z-index:14;color:var(--muted);line-height:1.5}
+#legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:middle}
+#tooltip{position:fixed;pointer-events:none;background:rgba(5,10,16,.94);border:1px solid var(--acc2);color:#fff;padding:7px 10px;border-radius:8px;font-size:12px;max-width:300px;z-index:30;display:none} #tooltip b{color:var(--acc2)} #tooltip .m{font-family:var(--mono);font-size:11px;color:#cfe3f5;margin-top:3px;white-space:pre-line}
+.hidepanel #side,.hidepanel #card,.hidepanel #legend,.hidepanel #prog{display:none}
+@media (max-width:900px){#side{width:260px}#card{width:300px}#prog{left:284px;right:324px}}
+@media (max-width:640px){#side{display:none}#card{left:12px;right:12px;width:auto;top:auto;bottom:70px;max-height:40vh}#prog,#legend{display:none}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="top">
+  <div class="brand">DIAGRAMA DE CONEXIÓN 3D · PASO A PASO<small>Protoboard 830 puntos · 156 pasos · cada hueco coincide con el dossier y el esquemático</small></div>
+  <span style="flex:1"></span>
+  <button class="btn" id="bCam">🎥 Auto-cámara: ON</button>
+  <button class="btn" id="bAll">👁 Mostrar todas las piezas</button>
+  <button class="btn" id="bConn">🔗 Resaltar piezas conectadas: ON</button>
+  <button class="btn" id="bPanels">◧ Paneles</button>
+  <a class="btn" id="bSch" href="diagrama_conexion_tradicional.html" target="_blank" style="text-decoration:none">📐 Ver en esquemático</a>
+</div>
+<aside id="side"><input id="search" placeholder="Buscar paso, componente o hueco (E23, R12, LM393)…"><div id="list"></div></aside>
+<div id="card"></div>
+<div id="prog"><i id="progI"></i></div>
+<div id="nav"><button class="btn" id="bFirst">⏮</button><button class="btn big" id="bPrev">◀ Anterior</button><span id="counter">—</span><button class="btn big" id="bNext">Siguiente ▶</button><button class="btn" id="bLast">⏭</button></div>
+<div id="legend"><i style="background:#ff5a00"></i>pieza del paso actual (parpadea) · <i style="background:#00b7ff"></i>piezas ya colocadas que comparten red con ella · <i style="background:#ffb020"></i>huecos destino y grupo de 5 huecos unidos<br>🖱️ arrastrar = rotar · rueda = zoom · clic derecho = desplazar · ← → = paso anterior/siguiente · pasar el cursor = identificar</div>
+<div id="tooltip"></div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const SIM = { nets:{} };
+const PB_PARTS=[{"id": "W00", "t": "wire", "label": "Puente GND rieles", "pins": ["T-1", "B-1"], "net": "GND", "color": "negro", "fase": "0 · Rieles", "nota": "Une el riel negativo superior con el inferior (ambos = GND)", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "X1", "t": "term", "label": "Bornera BAT (2 pines, paso 2.54)", "pins": ["J1", "J2"], "net": ["BAT", "GND"], "color": "", "fase": "1 · Alimentación", "nota": "J1 = BAT+ (24 V a través de portafusible aéreo 2 A), J2 = BAT−", "pinNames": ["BAT+", "BAT−"]}, {"id": "W01", "t": "wire", "label": "BAT− a GND", "pins": ["I2", "B-2"], "net": "GND", "color": "negro", "fase": "1 · Alimentación", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "TVS1", "t": "tvs", "label": "1.5KE33CA (TVS 1500 W)", "pins": ["G1", "B-1"], "net": "BAT", "color": "", "fase": "1 · Alimentación", "nota": "Absorbe load-dump del alternador; bidireccional, sin polaridad", "pinNames": ["pata A", "pata B"]}, {"id": "D1", "t": "diode", "label": "SR360 Schottky 3 A/60 V", "pins": ["I1", "I3"], "net": ["BAT", "V_IN"], "color": "", "fase": "1 · Alimentación", "nota": "Ánodo I1 (BAT+), cátodo (banda) I3 → protección batería invertida de la lógica", "pinNames": ["ánodo", "cátodo (banda)"]}, {"id": "C1", "t": "ecap", "label": "100 µF / 50 V", "pins": ["H3", "B-3"], "net": "V_IN", "color": "", "fase": "1 · Alimentación", "nota": "Positivo en H3, negativo (franja) al riel B−", "pinNames": ["+ (pata larga)", "− (franja)"]}, {"id": "C2", "t": "ccap", "label": "100 nF", "pins": ["G3", "B-3"], "net": "V_IN", "color": "", "fase": "1 · Alimentación", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "U1", "t": "sip3", "label": "OKI-78SR-12/1.0-W36-C (Buck 7–36 V → 12 V)", "pins": ["J3", "J4", "J5"], "net": ["V_IN", "GND", "V12"], "color": "", "fase": "1 · Alimentación", "nota": "Pin1 Vin J3, Pin2 GND J4, Pin3 Vout J5", "pinNames": ["Vin", "GND", "Vout"]}, {"id": "W02", "t": "wire", "label": "GND OKI", "pins": ["I4", "B-4"], "net": "GND", "color": "negro", "fase": "1 · Alimentación", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "C3", "t": "ecap", "label": "10 µF / 25 V", "pins": ["I5", "B-5"], "net": "V12", "color": "", "fase": "1 · Alimentación", "nota": "Positivo I5", "pinNames": ["+ (pata larga)", "− (franja)"]}, {"id": "W03", "t": "wire", "label": "12 V → entrada 7805", "pins": ["H5", "H7"], "net": "V12", "color": "rojo", "fase": "1 · Alimentación", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W04", "t": "wire", "label": "12 V → LM2907 pin 6", "pins": ["G5", "J25"], "net": "V12", "color": "naranja", "fase": "1 · Alimentación", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "U2", "t": "to220", "label": "L7805CV (5 V)", "pins": ["J7", "J8", "J9"], "net": ["V12", "GND", "V5"], "color": "", "fase": "1 · Alimentación", "nota": "IN J7, GND J8, OUT J9 (cara metálica hacia afuera)", "pinNames": ["IN", "GND", "OUT"]}, {"id": "C4", "t": "ccap", "label": "330 nF", "pins": ["I7", "B-7"], "net": "V12", "color": "", "fase": "1 · Alimentación", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W05", "t": "wire", "label": "GND 7805", "pins": ["I8", "B-8"], "net": "GND", "color": "negro", "fase": "1 · Alimentación", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "C5", "t": "ccap", "label": "100 nF", "pins": ["I9", "B-9"], "net": "V5", "color": "", "fase": "1 · Alimentación", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "C6", "t": "ecap", "label": "10 µF / 25 V", "pins": ["H9", "B-9"], "net": "V5", "color": "", "fase": "1 · Alimentación", "nota": "Positivo H9", "pinNames": ["+ (pata larga)", "− (franja)"]}, {"id": "W06", "t": "wire", "label": "5 V → riel B+", "pins": ["G9", "B+9"], "net": "V5", "color": "rojo", "fase": "1 · Alimentación", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W07", "t": "wire", "label": "5 V → riel T+", "pins": ["F9", "T+9"], "net": "V5", "color": "rojo", "fase": "1 · Alimentación", "nota": "Cable largo: cruza la protoboard", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W08", "t": "wire", "label": "BAT+ → Vbb PROFET", "pins": ["H1", "C20"], "net": "BAT", "color": "rojo", "fase": "1 · Alimentación", "nota": "Cable de potencia (usar AWG 20)", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W09", "t": "wire", "label": "BAT+ → sensado VBAT", "pins": ["F1", "J61"], "net": "BAT", "color": "amarillo", "fase": "1 · Alimentación", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "X3", "t": "term", "label": "Bornera SOLENOIDE (2 pines)", "pins": ["E1", "E2"], "net": ["SOL", "SOL_RET"], "color": "", "fase": "2 · Etapa de potencia", "nota": "E1 = SOL+ (válvula freno motor), E2 = SOL−", "pinNames": ["SOL+", "SOL−"]}, {"id": "D5", "t": "diode", "label": "SB560 Schottky 5 A/60 V (rueda libre)", "pins": ["C2", "C1"], "net": ["SOL_RET", "SOL"], "color": "", "fase": "2 · Etapa de potencia", "nota": "Ánodo C2 (SOL−), cátodo (banda) C1 (SOL+)", "pinNames": ["ánodo", "cátodo (banda)"]}, {"id": "LED1", "t": "led", "label": "LED verde 24 V (resistencia interna) ACTUADOR", "pins": ["D1", "D2"], "net": ["SOL", "SOL_RET"], "color": "verde", "fase": "2 · Etapa de potencia", "nota": "Ánodo (pata larga) D1, cátodo D2", "pinNames": ["ánodo (pata larga)", "cátodo (pata corta)"]}, {"id": "Q1", "t": "to220", "label": "IRLZ44N (corte lado bajo)", "pins": ["B3", "B4", "B5"], "net": ["GATE", "SOL_RET", "GND"], "color": "", "fase": "2 · Etapa de potencia", "nota": "G B3, D B4, S B5", "pinNames": ["G (gate)", "D (drenador)", "S (fuente)"]}, {"id": "R1", "t": "res", "label": "10 kΩ (pull-down gate)", "pins": ["A3", "T-3"], "net": "GATE", "color": "", "fase": "2 · Etapa de potencia", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W10", "t": "wire", "label": "Fuente Q1 → GND", "pins": ["A5", "T-5"], "net": "GND", "color": "negro", "fase": "2 · Etapa de potencia", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W11", "t": "wire", "label": "SOL− → Drenador Q1", "pins": ["A2", "A4"], "net": "SOL_RET", "color": "azul", "fase": "2 · Etapa de potencia", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "U7", "t": "to220_5", "label": "BTS432E2 PROFET (adaptador TO-220-5 → 2.54 mm)", "pins": ["B18", "B19", "B20", "B21", "B22"], "net": ["GND", "PROFET_IN", "BAT", "ST", "SOL"], "color": "", "fase": "2 · Etapa de potencia", "nota": "Pin1 GND B18, Pin2 IN B19, Pin3 Vbb B20, Pin4 ST B21, Pin5 OUT B22", "pinNames": ["GND", "IN", "Vbb (+24 V)", "ST (diagnóstico)", "OUT (SOL+)"]}, {"id": "R2", "t": "res", "label": "150 Ω (GND PROFET, prot. batería invertida)", "pins": ["A18", "T-18"], "net": "GND", "color": "", "fase": "2 · Etapa de potencia", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "R3", "t": "res", "label": "10 kΩ (pull-up ST)", "pins": ["A21", "T+21"], "net": "ST", "color": "", "fase": "2 · Etapa de potencia", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W12", "t": "wire", "label": "OUT PROFET → SOL+", "pins": ["C22", "B1"], "net": "SOL", "color": "azul", "fase": "2 · Etapa de potencia", "nota": "Cable de potencia (AWG 20)", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W13", "t": "wire", "label": "SOL+ → divisor de sensado", "pins": ["A1", "D51"], "net": "SOL", "color": "amarillo", "fase": "2 · Etapa de potencia", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "U3", "t": "dip8", "label": "NE555 (generador de pulsos TACH de laboratorio)", "pins": ["E10", "E11", "E12", "E13", "F13", "F12", "F11", "F10"], "net": ["GND", "T555", "TACH", "V5", "T555CV", "T555", "T555D", "V5"], "color": "", "fase": "3 · Generador RPM de prueba (NE555)", "nota": "Pin1 E10 … Pin4 E13, Pin5 F13 … Pin8 F10", "pinNames": ["GND", "TRIG", "OUT", "RESET", "CV", "THR", "DIS", "VCC"]}, {"id": "W14", "t": "wire", "label": "555 pin1 GND", "pins": ["A10", "T-10"], "net": "GND", "color": "negro", "fase": "3 · Generador RPM de prueba (NE555)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W15", "t": "wire", "label": "555 pin4 RESET → 5 V", "pins": ["A13", "T+13"], "net": "V5", "color": "rojo", "fase": "3 · Generador RPM de prueba (NE555)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W16", "t": "wire", "label": "555 pin8 VCC → 5 V", "pins": ["J10", "B+10"], "net": "V5", "color": "rojo", "fase": "3 · Generador RPM de prueba (NE555)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "C7", "t": "ccap", "label": "10 nF (pin5 CV)", "pins": ["J13", "B-13"], "net": "T555CV", "color": "", "fase": "3 · Generador RPM de prueba (NE555)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "C8", "t": "ccap", "label": "470 nF (temporización)", "pins": ["C11", "T-11"], "net": "T555", "color": "", "fase": "3 · Generador RPM de prueba (NE555)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W17", "t": "wire", "label": "pin6 → pin2", "pins": ["G12", "D11"], "net": "T555", "color": "verde", "fase": "3 · Generador RPM de prueba (NE555)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "R4", "t": "res", "label": "4.7 kΩ (RB)", "pins": ["H11", "H12"], "net": ["T555D", "T555"], "color": "", "fase": "3 · Generador RPM de prueba (NE555)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "RV1", "t": "pot", "label": "Potenciómetro 100 kΩ (simula RPM)", "pins": ["B33", "B34", "B35"], "net": ["T555D", "T555D", "V5"], "color": "", "fase": "3 · Generador RPM de prueba (NE555)", "nota": "Pata 1 B33, cursor B34, pata 3 B35", "pinNames": ["pata 1", "cursor", "pata 3"]}, {"id": "W18", "t": "wire", "label": "Pot pata1 → cursor", "pins": ["A33", "A34"], "net": "T555D", "color": "verde", "fase": "3 · Generador RPM de prueba (NE555)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W19", "t": "wire", "label": "Cursor → 555 pin7", "pins": ["C34", "G11"], "net": "T555D", "color": "verde", "fase": "3 · Generador RPM de prueba (NE555)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "R5", "t": "res", "label": "2.2 kΩ (RA mínimo)", "pins": ["C35", "T+35"], "net": "V5", "color": "", "fase": "3 · Generador RPM de prueba (NE555)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W20", "t": "wire", "label": "Salida 555 → entrada TACH (SOLO LABORATORIO)", "pins": ["D12", "H20"], "net": "TACH", "color": "blanco", "fase": "3 · Generador RPM de prueba (NE555)", "nota": "Retirar al conectar la señal real del camión", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "X2", "t": "term", "label": "Bornera SENSORES (4 pines)", "pins": ["J18", "J19", "J20", "J21"], "net": ["V5", "TPS_RAW", "TACH", "CLUTCH_RAW"], "color": "", "fase": "4 · Entradas de sensores", "nota": "J18 = +5V_SW (alimenta interruptor embrague), J19 = TPS, J20 = TACH, J21 = CLUTCH", "pinNames": ["+5V_SW", "TPS", "TACH", "CLUTCH"]}, {"id": "W21", "t": "wire", "label": "+5V_SW", "pins": ["I18", "B+18"], "net": "V5", "color": "rojo", "fase": "4 · Entradas de sensores", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "R6", "t": "res", "label": "10 kΩ (serie TACH)", "pins": ["I20", "I22"], "net": ["TACH", "TACH_F"], "color": "", "fase": "4 · Entradas de sensores", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "DZ1", "t": "zener", "label": "1N4733A 5.1 V (clamp TACH)", "pins": ["H22", "B-22"], "net": "TACH_F", "color": "", "fase": "4 · Entradas de sensores", "nota": "Cátodo (banda) H22, ánodo al riel B−", "pinNames": ["cátodo (banda)", "ánodo"]}, {"id": "C9", "t": "ccap", "label": "100 nF (filtro TACH)", "pins": ["G22", "B-22"], "net": "TACH_F", "color": "", "fase": "4 · Entradas de sensores", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "C10", "t": "ccap", "label": "100 nF (acople AC → LM2907 pin1)", "pins": ["F22", "D23"], "net": ["TACH_F", "TACH_AC"], "color": "", "fase": "4 · Entradas de sensores", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W22", "t": "wire", "label": "TACH_F → MCU INT0 (PD2)", "pins": ["J22", "D53"], "net": "TACH_F", "color": "blanco", "fase": "4 · Entradas de sensores", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W23", "t": "wire", "label": "TPS bornera → fila 27", "pins": ["H19", "J27"], "net": "TPS_RAW", "color": "amarillo", "fase": "4 · Entradas de sensores", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "R7", "t": "res", "label": "1 kΩ (serie TPS)", "pins": ["I27", "I28"], "net": ["TPS_RAW", "TPS_F"], "color": "", "fase": "4 · Entradas de sensores", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "C11", "t": "ccap", "label": "1 µF (filtro TPS)", "pins": ["H28", "B-28"], "net": "TPS_F", "color": "", "fase": "4 · Entradas de sensores", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "R8", "t": "res", "label": "220 kΩ (pull-down detección cable roto)", "pins": ["G28", "B-28"], "net": "TPS_F", "color": "", "fase": "4 · Entradas de sensores", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "D6", "t": "diode", "label": "1N4148 (clamp a 5 V)", "pins": ["F28", "B+28"], "net": "TPS_F", "color": "", "fase": "4 · Entradas de sensores", "nota": "Ánodo F28, cátodo (banda) al riel B+", "pinNames": ["ánodo", "cátodo (banda)"]}, {"id": "W24", "t": "wire", "label": "TPS_F → LM393 U5 pin2", "pins": ["J28", "D30"], "net": "TPS_F", "color": "amarillo", "fase": "4 · Entradas de sensores", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W25", "t": "wire", "label": "CLUTCH bornera → fila 41", "pins": ["H21", "J41"], "net": "CLUTCH_RAW", "color": "violeta", "fase": "4 · Entradas de sensores", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "R9", "t": "res", "label": "1 kΩ (serie CLUTCH)", "pins": ["I41", "I42"], "net": ["CLUTCH_RAW", "CLUTCH_F"], "color": "", "fase": "4 · Entradas de sensores", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "R10", "t": "res", "label": "4.7 kΩ (pull-down CLUTCH)", "pins": ["H42", "B-42"], "net": "CLUTCH_F", "color": "", "fase": "4 · Entradas de sensores", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "C12", "t": "ccap", "label": "100 nF (filtro CLUTCH)", "pins": ["G42", "B-42"], "net": "CLUTCH_F", "color": "", "fase": "4 · Entradas de sensores", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "D7", "t": "diode", "label": "1N4148 (clamp a 5 V)", "pins": ["F42", "B+42"], "net": "CLUTCH_F", "color": "", "fase": "4 · Entradas de sensores", "nota": "Ánodo F42, cátodo al riel B+", "pinNames": ["ánodo", "cátodo (banda)"]}, {"id": "W26", "t": "wire", "label": "CLUTCH_F → 74HC08 pin5", "pins": ["J42", "D47"], "net": "CLUTCH_F", "color": "violeta", "fase": "4 · Entradas de sensores", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "U4", "t": "dip8", "label": "LM2907N-8 (frecuencia → voltaje)", "pins": ["E23", "E24", "E25", "E26", "F26", "F25", "F24", "F23"], "net": ["TACH_AC", "CP1", "VFV", "VFV", "V12", "V12", "VFV", "GND"], "color": "", "fase": "5 · Convertidor F/V LM2907N-8", "nota": "Pin1 E23 TACH+, 2 E24 CP1, 3 E25 CP2, 4 E26 EMIT, 5 F26 COL, 6 F25 V+, 7 F24 IN−, 8 F23 GND", "pinNames": ["TACH+ (entrada)", "CP1", "CP2 / IN+", "EMIT (VFV)", "COL", "V+ (12 V)", "IN−", "GND"]}, {"id": "R11", "t": "res", "label": "100 kΩ (polarización entrada AC)", "pins": ["C23", "T-23"], "net": "TACH_AC", "color": "", "fase": "5 · Convertidor F/V LM2907N-8", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "C13", "t": "ccap", "label": "15 nF (C1 bomba de carga)", "pins": ["A24", "T-24"], "net": "CP1", "color": "", "fase": "5 · Convertidor F/V LM2907N-8", "nota": "Film/NP0 5 %", "pinNames": ["pata A", "pata B"]}, {"id": "R12", "t": "res", "label": "68 kΩ 1 % (R1 ganancia F/V)", "pins": ["D25", "T-25"], "net": "VFV", "color": "", "fase": "5 · Convertidor F/V LM2907N-8", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "C14", "t": "ccap", "label": "1 µF (C2 filtro)", "pins": ["C25", "T-25"], "net": "VFV", "color": "", "fase": "5 · Convertidor F/V LM2907N-8", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "R13", "t": "res", "label": "10 kΩ (emisor RE)", "pins": ["A26", "T-26"], "net": "VFV", "color": "", "fase": "5 · Convertidor F/V LM2907N-8", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W27", "t": "wire", "label": "pin7 IN− → pin4 EMIT (seguidor)", "pins": ["G24", "D26"], "net": "VFV", "color": "verde", "fase": "5 · Convertidor F/V LM2907N-8", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W28", "t": "wire", "label": "pin5 COL → pin6 V+", "pins": ["I26", "I25"], "net": "V12", "color": "naranja", "fase": "5 · Convertidor F/V LM2907N-8", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "C15", "t": "ccap", "label": "100 nF (desacople V+)", "pins": ["G25", "B-25"], "net": "V12", "color": "", "fase": "5 · Convertidor F/V LM2907N-8", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W29", "t": "wire", "label": "pin8 GND", "pins": ["G23", "B-23"], "net": "GND", "color": "negro", "fase": "5 · Convertidor F/V LM2907N-8", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W30", "t": "wire", "label": "VFV → fila 33 (hacia Rs)", "pins": ["B26", "J33"], "net": "VFV", "color": "amarillo", "fase": "5 · Convertidor F/V LM2907N-8", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W31", "t": "wire", "label": "VFV → MCU A2 (PC2)", "pins": ["C26", "G53"], "net": "VFV", "color": "amarillo", "fase": "5 · Convertidor F/V LM2907N-8", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "U5", "t": "dip8", "label": "LM393 U5 (A: TPS 1.35 V ±0.05 · B: RPM 1300)", "pins": ["E29", "E30", "E31", "E32", "F32", "F31", "F30", "F29"], "net": ["TPS_GO", "TPS_F", "VREF1", "GND", "VFV_S", "VREF2", "RPM_OK", "V5"], "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": "Pin1 E29 OUT1, 2 E30 IN1−, 3 E31 IN1+, 4 E32 GND, 5 F32 IN2+, 6 F31 IN2−, 7 F30 OUT2, 8 F29 VCC", "pinNames": ["OUT1 (TPS_GO)", "IN1− (TPS_F)", "IN1+ (Vref1 1.32 V)", "GND", "IN2+ (VFV·Rs)", "IN2− (Vref2)", "OUT2 (RPM_OK)", "VCC"]}, {"id": "W32", "t": "wire", "label": "U5 VCC", "pins": ["J29", "B+29"], "net": "V5", "color": "rojo", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "C16", "t": "ccap", "label": "100 nF", "pins": ["G29", "B-29"], "net": "V5", "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W33", "t": "wire", "label": "U5 GND", "pins": ["A32", "T-32"], "net": "GND", "color": "negro", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "R14", "t": "res", "label": "7.5 kΩ 1 % (RH divisor 1.35 V)", "pins": ["C31", "T+31"], "net": "VREF1", "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "R15", "t": "res", "label": "2.7 kΩ 1 % (RL divisor 1.35 V)", "pins": ["B31", "T-31"], "net": "VREF1", "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "C17", "t": "ccap", "label": "100 nF (filtro Vref1)", "pins": ["A31", "T-31"], "net": "VREF1", "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "R16", "t": "res", "label": "100 kΩ (RF histéresis 0.10 V)", "pins": ["D29", "D31"], "net": ["TPS_GO", "VREF1"], "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "R17", "t": "res", "label": "2.2 kΩ (pull-up OUT1)", "pins": ["C29", "T+29"], "net": "TPS_GO", "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W34", "t": "wire", "label": "TPS_F → U6 pin3", "pins": ["C30", "D39"], "net": "TPS_F", "color": "amarillo", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W35", "t": "wire", "label": "TPS_F → MCU A0 (PC0)", "pins": ["B30", "G55"], "net": "TPS_F", "color": "amarillo", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W36", "t": "wire", "label": "TPS_GO → 74HC08 pin2", "pins": ["B29", "D44"], "net": "TPS_GO", "color": "cian", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "R18", "t": "res", "label": "10 kΩ (Rs entrada RPM)", "pins": ["I33", "I32"], "net": ["VFV", "VFV_S"], "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "R19", "t": "res", "label": "470 kΩ (RF histéresis RPM)", "pins": ["H32", "H30"], "net": ["VFV_S", "RPM_OK"], "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "R20", "t": "res", "label": "2.2 kΩ (pull-up OUT2)", "pins": ["G30", "B+30"], "net": "RPM_OK", "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "C18", "t": "ccap", "label": "100 nF (filtro Vref2)", "pins": ["H31", "B-31"], "net": "VREF2", "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "RV2", "t": "trim", "label": "Trimmer 10 kΩ multivuelta (ajuste 1300 RPM)", "pins": ["B6", "B7", "B8"], "net": ["V5", "VREF2", "GND"], "color": "", "fase": "6 · Comparador principal LM393 (U5)", "nota": "Pata 1 B6, cursor B7, pata 3 B8", "pinNames": ["pata 1", "cursor", "pata 3"]}, {"id": "W37", "t": "wire", "label": "Trimmer pata1 → 5 V", "pins": ["A6", "T+6"], "net": "V5", "color": "rojo", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W38", "t": "wire", "label": "Trimmer pata3 → GND", "pins": ["A8", "T-8"], "net": "GND", "color": "negro", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W39", "t": "wire", "label": "Cursor trimmer → U5 pin6", "pins": ["C7", "G31"], "net": "VREF2", "color": "amarillo", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W40", "t": "wire", "label": "RPM_OK → 74HC08 pin1", "pins": ["I30", "D43"], "net": "RPM_OK", "color": "cian", "fase": "6 · Comparador principal LM393 (U5)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "U6", "t": "dip8", "label": "LM393 U6 (ventana 0.20 V < TPS < 4.80 V)", "pins": ["E37", "E38", "E39", "E40", "F40", "F39", "F38", "F37"], "net": ["TPS_GO", "VREF3", "TPS_F", "GND", "VREF4", "TPS_F", "TPS_GO", "V5"], "color": "", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": "Pin1 E37 OUT1, 2 E38 IN1−, 3 E39 IN1+, 4 E40 GND, 5 F40 IN2+, 6 F39 IN2−, 7 F38 OUT2, 8 F37 VCC", "pinNames": ["OUT1 (TPS>0.20)", "IN1− (0.20 V)", "IN1+ (TPS_F)", "GND", "IN2+ (4.80 V)", "IN2− (TPS_F)", "OUT2 (TPS<4.80)", "VCC"]}, {"id": "W41", "t": "wire", "label": "U6 VCC", "pins": ["J37", "B+37"], "net": "V5", "color": "rojo", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "C19", "t": "ccap", "label": "100 nF", "pins": ["G37", "B-37"], "net": "V5", "color": "", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W42", "t": "wire", "label": "U6 GND", "pins": ["A40", "T-40"], "net": "GND", "color": "negro", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "R21", "t": "res", "label": "24 kΩ (ref 0.20 V, alto)", "pins": ["D38", "T+38"], "net": "VREF3", "color": "", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "R22", "t": "res", "label": "1 kΩ (ref 0.20 V, bajo)", "pins": ["C38", "T-38"], "net": "VREF3", "color": "", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "R23", "t": "res", "label": "1 kΩ (ref 4.80 V, alto)", "pins": ["G40", "B+40"], "net": "VREF4", "color": "", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "R24", "t": "res", "label": "24 kΩ (ref 4.80 V, bajo)", "pins": ["H40", "B-40"], "net": "VREF4", "color": "", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W43", "t": "wire", "label": "TPS_F pin3 → pin6", "pins": ["C39", "G39"], "net": "TPS_F", "color": "amarillo", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W44", "t": "wire", "label": "OUT1 → nodo TPS_GO (AND cableado)", "pins": ["D37", "A29"], "net": "TPS_GO", "color": "cian", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W45", "t": "wire", "label": "OUT2 → nodo TPS_GO (AND cableado)", "pins": ["G38", "C37"], "net": "TPS_GO", "color": "cian", "fase": "7 · Comparador de ventana LM393 (U6) – fail-safe TPS", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "U8", "t": "dip14", "label": "74HCT08 (4 × AND: RPM·TPS·CLUTCH·MCU·WD)", "pins": ["E43", "E44", "E45", "E46", "E47", "E48", "E49", "F49", "F48", "F47", "F46", "F45", "F44", "F43"], "net": ["RPM_OK", "TPS_GO", "AND1", "AND1", "CLUTCH_F", "CH_A", "GND", "DRV3", "CH_A", "MCU_EN", "PROFET_IN", "DRV3", "WD_OK", "V5"], "color": "", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": "Pin1 E43 … Pin7 E49 (GND), Pin8 F49 … Pin14 F43 (VCC)", "pinNames": ["1A", "1B", "1Y", "2A", "2B", "2Y (CH_A)", "GND", "3Y", "3A", "3B", "4Y (PROFET_IN)", "4A", "4B", "VCC"]}, {"id": "W46", "t": "wire", "label": "U8 VCC", "pins": ["J43", "B+43"], "net": "V5", "color": "rojo", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "C20", "t": "ccap", "label": "100 nF", "pins": ["G43", "B-43"], "net": "V5", "color": "", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W47", "t": "wire", "label": "U8 GND", "pins": ["A49", "T-49"], "net": "GND", "color": "negro", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W48", "t": "wire", "label": "Y1 (pin3) → A2 (pin4)", "pins": ["D45", "D46"], "net": "AND1", "color": "cian", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W49", "t": "wire", "label": "Y2 = CH_A (pin6) → A3 (pin9)", "pins": ["D48", "G48"], "net": "CH_A", "color": "cian", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W50", "t": "wire", "label": "Y3 (pin8) → A4 (pin12)", "pins": ["G49", "G45"], "net": "DRV3", "color": "cian", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W51", "t": "wire", "label": "Y4 (pin11) → PROFET IN", "pins": ["G46", "C19"], "net": "PROFET_IN", "color": "cian", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W52", "t": "wire", "label": "CH_A → MCU PD4 (monitoreo)", "pins": ["C48", "D55"], "net": "CH_A", "color": "cian", "fase": "8 · Lógica AND 74HC08 (U8)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "U10", "t": "dip8", "label": "DS1232 (supervisor + watchdog 150 ms)", "pins": ["E14", "E15", "E16", "E17", "F17", "F16", "F15", "F14"], "net": ["NC", "GND", "GND", "GND", "WD_OK", "NC", "WDI", "V5"], "color": "", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": "Pin1 E14 /PBRST (libre), 2 E15 TD, 3 E16 TOL, 4 E17 GND, 5 F17 /RST, 6 F16 RST (libre), 7 F15 ST, 8 F14 VCC", "pinNames": ["/PBRST", "TD", "TOL", "GND", "/RST (WD_OK)", "RST", "ST (latido)", "VCC"]}, {"id": "W53", "t": "wire", "label": "TD → GND (timeout 150 ms)", "pins": ["A15", "T-15"], "net": "GND", "color": "negro", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W54", "t": "wire", "label": "TOL → GND (tolerancia 5 %)", "pins": ["A16", "T-16"], "net": "GND", "color": "negro", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W55", "t": "wire", "label": "GND", "pins": ["A17", "T-17"], "net": "GND", "color": "negro", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W56", "t": "wire", "label": "VCC", "pins": ["J14", "B+14"], "net": "V5", "color": "rojo", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "C21", "t": "ccap", "label": "100 nF", "pins": ["G14", "B-14"], "net": "V5", "color": "", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W57", "t": "wire", "label": "/RST → RESET MCU (pin1)", "pins": ["G17", "C50"], "net": "WD_OK", "color": "gris", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W58", "t": "wire", "label": "/RST = WD_OK → 74HC08 pin13", "pins": ["H17", "G44"], "net": "WD_OK", "color": "gris", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W59", "t": "wire", "label": "ST ← MCU PD6 (latido 50 ms)", "pins": ["D61", "G15"], "net": "WDI", "color": "gris", "fase": "9 · Watchdog externo DS1232 (U10)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "U9", "t": "dip28", "label": "ATmega328P-PU (canal B + diagnóstico)", "pins": ["E50", "E51", "E52", "E53", "E54", "E55", "E56", "E57", "E58", "E59", "E60", "E61", "E62", "E63", "F63", "F62", "F61", "F60", "F59", "F58", "F57", "F56", "F55", "F54", "F53", "F52", "F51", "F50"], "net": ["WD_OK", "SOL", "OUT_SENSE", "TACH_F", "PD3", "CH_A", "V5", "GND", "XTAL", "XTAL", "ST", "WDI", "NC", "MCU_EN", "GATE", "NC", "BAT", "VBAT_SENSE", "NC", "V5", "AREF", "GND", "TPS_F", "CLUTCH_F", "VFV", "OUT_SENSE", "VBAT_SENSE", "NC"], "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "Pin1 E50 (RESET) … Pin14 E63 (PB0); Pin15 F63 (PB1) … Pin28 F50 (PC5)", "pinNames": ["RESET", "PD0", "PD1", "PD2/INT0 (TACH)", "PD3 (LED falla)", "PD4 (CH_A)", "VCC", "GND", "XTAL1", "XTAL2", "PD5 (ST)", "PD6 (WDI)", "PD7", "PB0 (MCU_EN)", "PB1 (GATE)", "PB2", "PB3", "PB4", "PB5", "AVCC", "AREF", "GND", "PC0/A0 (TPS)", "PC1/A1 (CLUTCH)", "PC2/A2 (VFV)", "PC3/A3 (SOL+)", "PC4/A4 (VBAT)", "PC5/A5"]}, {"id": "R25", "t": "res", "label": "10 kΩ (pull-up RESET)", "pins": ["D50", "T+50"], "net": "WD_OK", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W60", "t": "wire", "label": "VCC pin7", "pins": ["A56", "T+56"], "net": "V5", "color": "rojo", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "C22", "t": "ccap", "label": "100 nF (VCC)", "pins": ["B56", "T-56"], "net": "V5", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W61", "t": "wire", "label": "GND pin8", "pins": ["A57", "T-57"], "net": "GND", "color": "negro", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "Y1", "t": "xtal", "label": "Cristal 16 MHz", "pins": ["D58", "D59"], "net": "XTAL", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "C23", "t": "ccap", "label": "22 pF", "pins": ["C58", "T-58"], "net": "XTAL", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "C24", "t": "ccap", "label": "22 pF", "pins": ["C59", "T-59"], "net": "XTAL", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W62", "t": "wire", "label": "AVCC pin20", "pins": ["J58", "B+58"], "net": "V5", "color": "rojo", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "C25", "t": "ccap", "label": "100 nF (AVCC)", "pins": ["G58", "B-58"], "net": "V5", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "C26", "t": "ccap", "label": "100 nF (AREF)", "pins": ["G57", "B-57"], "net": "AREF", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W63", "t": "wire", "label": "GND pin22", "pins": ["G56", "B-56"], "net": "GND", "color": "negro", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W64", "t": "wire", "label": "PROFET ST → PD5", "pins": ["C21", "D60"], "net": "ST", "color": "gris", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W65", "t": "wire", "label": "PB0 = MCU_EN → 74HC08 pin10", "pins": ["D63", "G47"], "net": "MCU_EN", "color": "cian", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "R26", "t": "res", "label": "10 kΩ (pull-down MCU_EN)", "pins": ["C63", "T-63"], "net": "MCU_EN", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W66", "t": "wire", "label": "PB1 → fila 41 (gate)", "pins": ["G63", "A41"], "net": "GATE", "color": "azul", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "R27", "t": "res", "label": "100 Ω (serie gate)", "pins": ["B41", "B42"], "net": "GATE", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W67", "t": "wire", "label": "Gate → Q1 (B3)", "pins": ["C42", "C3"], "net": "GATE", "color": "azul", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "R28", "t": "res", "label": "39 kΩ (sensado SOL+, alto)", "pins": ["C51", "C52"], "net": ["SOL", "OUT_SENSE"], "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "PD0/PD1 se configuran como entradas: filas 51-52 sirven de nodo", "pinNames": ["pata A", "pata B"]}, {"id": "R29", "t": "res", "label": "10 kΩ (sensado SOL+, bajo)", "pins": ["B52", "T-52"], "net": "OUT_SENSE", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W68", "t": "wire", "label": "Nodo sensado → A3 (PC3)", "pins": ["A52", "G52"], "net": "OUT_SENSE", "color": "amarillo", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "R30", "t": "res", "label": "100 kΩ (sensado VBAT, alto)", "pins": ["I61", "I60"], "net": ["BAT", "VBAT_SENSE"], "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "PB3/PB4 como entradas: filas 60-61 sirven de nodo", "pinNames": ["pata A", "pata B"]}, {"id": "R31", "t": "res", "label": "15 kΩ (sensado VBAT, bajo)", "pins": ["H60", "B-60"], "net": "VBAT_SENSE", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "W69", "t": "wire", "label": "Nodo VBAT → A4 (PC4)", "pins": ["G60", "G51"], "net": "VBAT_SENSE", "color": "amarillo", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W70", "t": "wire", "label": "CLUTCH_F → A1 (PC1)", "pins": ["C47", "G54"], "net": "CLUTCH_F", "color": "violeta", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "W71", "t": "wire", "label": "PD3 → LED falla", "pins": ["D54", "J36"], "net": "PD3", "color": "rojo", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}, {"id": "R32", "t": "res", "label": "330 Ω (LED falla)", "pins": ["I36", "I35"], "net": "PD3", "color": "", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["pata A", "pata B"]}, {"id": "LED2", "t": "led", "label": "LED rojo FALLA / diagnóstico", "pins": ["H35", "H34"], "net": ["PD3", "GND"], "color": "rojo", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "Ánodo H35, cátodo H34", "pinNames": ["ánodo (pata larga)", "cátodo (pata corta)"]}, {"id": "W72", "t": "wire", "label": "Cátodo LED → GND", "pins": ["G34", "B-34"], "net": "GND", "color": "negro", "fase": "10 · Microcontrolador ATmega328P-PU (U9)", "nota": "", "pinNames": ["extremo 1", "extremo 2"]}];
+
+const TIPO={wire:'Cable puente',res:'Resistencia',ccap:'Condensador',ecap:'Condensador electrolítico',diode:'Diodo',zener:'Diodo zener',tvs:'Diodo TVS',led:'LED',xtal:'Cristal',dip8:'Circuito integrado DIP-8',dip14:'Circuito integrado DIP-14',dip28:'Circuito integrado DIP-28',to220:'Encapsulado TO-220',to220_5:'Encapsulado TO-220-5',sip3:'Módulo SIP-3',pot:'Potenciómetro',trim:'Trimmer multivuelta',term:'Bornera'};
+function stepText(p){
+  const A=p.pins[0], B=p.pins[1];
+  switch(p.t){
+    case 'wire': return `Cable ${p.color||''}: inserta un extremo en ${A} y el otro en ${B}.`;
+    case 'res': return `Resistencia ${p.label}: una pata en ${A} y la otra en ${B}. No tiene polaridad.`;
+    case 'ccap': return `Condensador ${p.label}: una pata en ${A} y la otra en ${B}. Sin polaridad.`;
+    case 'tvs': return `Diodo TVS ${p.label}: sin polaridad (bidireccional). Patas en ${A} y ${B}.`;
+    case 'xtal': return `Cristal ${p.label}: patas en ${A} y ${B}. Sin polaridad.`;
+    case 'ecap': return `Electrolítico ${p.label}: pata POSITIVA (larga) en ${A}; pata NEGATIVA (lado de la franja) en ${B}.`;
+    case 'diode': return `Diodo ${p.label}: ÁNODO en ${A}; CÁTODO (extremo con la banda) en ${B}.`;
+    case 'zener': return `Zener ${p.label}: CÁTODO (banda) en ${A}; ÁNODO en ${B}.`;
+    case 'led': return `LED ${p.label}: ÁNODO (pata larga) en ${A}; CÁTODO (pata corta, borde plano) en ${B}.`;
+    case 'dip8': case 'dip14': case 'dip28': return `${p.label}: a horcajadas del canal central, muesca/punto del pin 1 hacia la fila menor. Pin 1 en ${A}; los pines suben por la columna E y bajan por la F.`;
+    case 'to220': return `${p.label}: tres patas en filas consecutivas (${p.pins.join(', ')}), cara metálica hacia el borde de la placa.`;
+    case 'to220_5': return `${p.label}: soldar antes a un adaptador de 5 pines paso 2.54 mm. Patas en ${p.pins.join(', ')}.`;
+    case 'sip3': return `${p.label}: tres pines en línea, en ${p.pins.join(', ')}.`;
+    case 'pot': case 'trim': return `${p.label}: patas en ${p.pins.join(', ')} (la central es el cursor).`;
+    case 'term': return `${p.label}: pines en ${p.pins.join(', ')}; los tornillos miran hacia el borde de la placa.`;
+  }
+  return p.label;
+}
+function pinRows(p){ const nets=Array.isArray(p.net)?p.net:p.pins.map(()=>p.net); return p.pins.map((h,i)=>({hole:h,name:p.pinNames[i]||('pin '+(i+1)),net:nets[i]})); }
+function holeGroup(h){ const m=/^([A-J]|[TB][+-])(\d+)$/.exec(h); if(!m) return ''; const c=m[1]; if(c.length===2) return 'riel '+c+' (todo el riel es la misma red)'; return (c<='E'?'grupo A–E':'grupo F–J')+' de la fila '+m[2]+' (5 huecos unidos)'; }
+
+/* =====================================================================
+   3. MOTOR 3D (Three.js): renderer, materiales, utilidades
+   ===================================================================== */
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05; renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.05, 3000);
+const controls = new OrbitControls(camera, canvas); controls.enableDamping = true; controls.dampingFactor = 0.08; controls.screenSpacePanning = true;
+const G = { proto:new THREE.Group(), pcb:new THREE.Group(), truck:new THREE.Group() }; scene.add(G.proto, G.pcb, G.truck);
+
+const KIND_COLOR = { pwr:0xff9f1c, sig:0x00e5ff, ana:0xffd166, act:0x39ff14, fault:0xff3b3b };
+const glowables = [], pickables = [];
+function registerGlow(mesh, net, maxE = 1.1){ if (!net || net === 'NC') return; mesh.material = mesh.material.clone(); glowables.push({ mesh, net, maxE }); }
+function pickable(obj, name, desc){ obj.traverse(o => { if (o.isMesh){ o.userData.pick = { name, desc }; pickables.push(o); } }); }
+const _ec = new THREE.Color();
+function applyGlow(){
+  for (const g of glowables){
+    const n = SIM.nets[g.net]; if (!n){ g.mesh.material.emissive.setScalar(0); continue; }
+    _ec.setHex(KIND_COLOR[n.kind] || 0x00e5ff).multiplyScalar(Math.max(0, Math.min(1, n.level)) * g.maxE);
+    g.mesh.material.emissive.copy(_ec);
+  }
+}
+const std = (c, r = .55, m = 0, extra = {}) => new THREE.MeshStandardMaterial(Object.assign({ color:c, roughness:r, metalness:m }, extra));
+const MAT = {
+  black: std(0x15171a, .55, .1), bodyDark: std(0x1d2024, .5, .15), pin: std(0xd9dde2, .3, .95), copper: std(0xd08a3c, .35, .85), solder: std(0xd4d8dd, .22, 1),
+  resBody: std(0xe8d7b0, .7), ceramic: std(0xd9b24a, .6), ecap: std(0x1a2f6b, .5), diode: std(0x111111, .45), band: std(0xdedede, .4, .5), zener: std(0xb0491a, .5),
+  tvs: std(0x2d2d2d, .5), to220: std(0x1a1a1a, .5), tab: std(0xb9bec5, .35, .95), pcbGreen: std(0x0f5a2a, .55), pcbBottom: std(0x0d4a24, .55), silk: std(0xffffff, .6),
+  board: std(0xf2f3ee, .8), hole: std(0x2b2d31, .9), railRed: std(0xd93636, .7), railBlue: std(0x2f63d9, .7), potBlue: std(0x1c58c7, .55), trimBlue: std(0x1a62d6, .5),
+  term: std(0x1d7f3a, .6), termScrew: std(0xcfd3d8, .3, .9), xtal: std(0xc8ccd1, .3, .9), ledG: std(0x1fd14a, .3, 0, { transparent:true, opacity:.85 }), ledR: std(0xe02020, .3, 0, { transparent:true, opacity:.85 }),
+  glass: new THREE.MeshPhysicalMaterial({ color:0x9fd3ff, roughness:.05, metalness:0, transmission:.85, thickness:.5, transparent:true, opacity:.9 }),
+};
+const WIRE_COLORS = { negro:0x151515, rojo:0xd81e1e, naranja:0xf28c1a, amarillo:0xf2d31b, verde:0x1fa84a, azul:0x1f55d8, violeta:0x7a3fd8, blanco:0xeeeeee, gris:0x8a8f99, cian:0x19c7d8 };
+
+function makeLabel(text, w, h, opts = {}){
+  const { color = '#ffffff', bg = null, font = 'bold', size = 64, align = 'center' } = opts;
+  const cw = 512, ch = Math.max(32, Math.round(512 * h / w));
+  const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch; const ctx = cv.getContext('2d');
+  if (bg){ ctx.fillStyle = bg; ctx.fillRect(0, 0, cw, ch); }
+  ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle';
+  let fs = Math.min(ch * 0.78, size); ctx.font = `${font} ${fs}px Arial, Helvetica, sans-serif`;
+  while (ctx.measureText(text).width > cw * 0.94 && fs > 8){ fs *= 0.92; ctx.font = `${font} ${fs}px Arial, Helvetica, sans-serif`; }
+  ctx.fillText(text, align === 'center' ? cw/2 : (align === 'left' ? 8 : cw - 8), ch/2);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map:tex, transparent:true, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2 }));
+  mesh.rotation.x = -Math.PI/2; return mesh;
+}
+function tubeAlong(points, radius, material, segs = 24){
+  const curve = new THREE.CatmullRomCurve3(points, false, 'catmullrom', 0.0);
+  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, segs, radius, 8, false), material); m.castShadow = true; return m;
+}
+function box(w, h, d, mat, x = 0, y = 0, z = 0){ const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; return m; }
+function cyl(rt, rb, h, mat, x = 0, y = 0, z = 0, seg = 20){ const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat); m.position.set(x, y, z); m.castShadow = true; return m; }
+function alignBetween(mesh, a, b){ // orienta un cilindro (eje Y) entre dos puntos
+  const dir = new THREE.Vector3().subVectors(b, a); const len = dir.length(); mesh.position.copy(a).add(b).multiplyScalar(0.5);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize()); return len;
+}
+const RES_COLORS = [0x000000, 0x8b4513, 0xe02020, 0xff8c00, 0xf2d31b, 0x1fa84a, 0x1f55d8, 0x8a2be2, 0x808080, 0xffffff];
+function resistorBands(valueStr){
+  const m = /([\d.]+)\s*([kM]?)/.exec(valueStr || ''); if (!m) return [0x8b4513, 0x000000, 0xe02020];
+  let v = parseFloat(m[1]) * (m[2] === 'k' ? 1e3 : m[2] === 'M' ? 1e6 : 1); if (v < 1) v = 1;
+  let exp = 0; while (v >= 100){ v /= 10; exp++; } while (v < 10){ v *= 10; exp--; }
+  const d1 = Math.floor(v/10), d2 = Math.floor(v) % 10;
+  return [RES_COLORS[d1], RES_COLORS[d2], RES_COLORS[Math.max(0, Math.min(9, exp))]];
+}
+
+/* ---------------- Constructores de componentes (unidades: mm) ---------------- */
+function buildTwoLead(part, A, B, nets){
+  const g = new THREE.Group(); const t = part.t; const H = 3.2;
+  const a1 = A.clone().setY(H), b1 = B.clone().setY(H); const mid = a1.clone().add(b1).multiplyScalar(0.5);
+  const dirAB = b1.clone().sub(a1); const span = dirAB.length(); dirAB.normalize();
+  const leadMat = MAT.pin;
+  function leads(bodyLen){
+    const e1 = mid.clone().addScaledVector(dirAB, -bodyLen/2), e2 = mid.clone().addScaledVector(dirAB, bodyLen/2);
+    const l1 = tubeAlong([A, A.clone().setY(H*0.6), a1, e1], 0.32, leadMat, 12), l2 = tubeAlong([e2, b1, B.clone().setY(H*0.6), B], 0.32, leadMat, 12);
+    registerGlow(l1, nets[0], 0.9); registerGlow(l2, nets[1], 0.9); g.add(l1, l2);
+  }
+  if (t === 'wire'){
+    const d = A.distanceTo(B); const arc = Math.min(28, Math.max(5, d * 0.32));
+    const c = new THREE.QuadraticBezierCurve3(A, A.clone().add(B).multiplyScalar(0.5).setY(arc), B);
+    const mat = std(WIRE_COLORS[part.color] ?? 0x888888, .45, .05);
+    const w = new THREE.Mesh(new THREE.TubeGeometry(c, Math.max(8, Math.round(d/3)), 0.62, 10, false), mat); w.castShadow = true;
+    registerGlow(w, nets[0], 1.0); g.add(w);
+    // extremos pelados
+    [A, B].forEach(p => { const tip = cyl(0.3, 0.3, 2.2, MAT.pin, p.x, 1.0, p.z); g.add(tip); });
+    return g;
+  }
+  if (t === 'res'){
+    const len = Math.min(6.4, Math.max(3.5, span - 3)); leads(len);
+    const body = cyl(1.15, 1.15, len, MAT.resBody); alignBetween(body, mid.clone().addScaledVector(dirAB, -len/2), mid.clone().addScaledVector(dirAB, len/2));
+    registerGlow(body, nets[0], 0.5); g.add(body);
+    const bands = resistorBands(part.label); bands.forEach((c, i) => { const b = cyl(1.25, 1.25, 0.6, std(c, .6)); const off = -len*0.3 + i*len*0.2; b.position.copy(mid).addScaledVector(dirAB, off); b.quaternion.copy(body.quaternion); g.add(b); });
+    const tol = cyl(1.25, 1.25, 0.6, std(0xc9a227, .4, .6)); tol.position.copy(mid).addScaledVector(dirAB, len*0.36); tol.quaternion.copy(body.quaternion); g.add(tol);
+    return g;
+  }
+  if (t === 'ccap'){
+    const isBig = /µF/.test(part.label);
+    leads(isBig ? 3.0 : 2.0);
+    const body = box(isBig ? 4.2 : 3.0, isBig ? 3.4 : 2.6, 1.6, isBig ? std(0x1f7fd6, .6) : MAT.ceramic); body.position.copy(mid).setY(H + 0.8); body.lookAt(mid.clone().add(new THREE.Vector3(-dirAB.z, 0, dirAB.x))); registerGlow(body, nets[0], 0.5); g.add(body);
+    return g;
+  }
+  if (t === 'ecap'){
+    const r = /100 µF/.test(part.label) ? 3.2 : 2.5, h = /100 µF/.test(part.label) ? 10 : 7;
+    const body = cyl(r, r, h, MAT.ecap, A.x, h/2 + 0.5, A.z); registerGlow(body, nets[0], 0.5); g.add(body);
+    const top = cyl(r*0.98, r*0.98, 0.3, std(0xb9bec5, .35, .9), A.x, h + 0.65, A.z); g.add(top);
+    const stripe = box(0.8, h*0.95, 0.2, std(0xdfe4ea, .7), A.x + (B.x - A.x)*0.001, h/2 + 0.5, A.z + r*0.99); stripe.lookAt(new THREE.Vector3(A.x, h/2+0.5, A.z)); g.add(stripe);
+    const l1 = tubeAlong([A, A.clone().setY(0.5)], 0.32, MAT.pin, 4), l2 = tubeAlong([B, B.clone().setY(1.2), new THREE.Vector3(A.x + (B.x-A.x)*0.3, 1.2, A.z + (B.z-A.z)*0.3), new THREE.Vector3(A.x+(B.x-A.x)*0.3, 0.6, A.z+(B.z-A.z)*0.3)], 0.32, MAT.pin, 10);
+    registerGlow(l1, nets[0], 0.9); registerGlow(l2, nets[1], 0.9); g.add(l1, l2); return g;
+  }
+  if (t === 'diode' || t === 'zener' || t === 'tvs'){
+    const big = /SB560|SR360|1.5KE/.test(part.label);
+    const len = t === 'tvs' ? 7.5 : (big ? 5.2 : 3.6), rad = t === 'tvs' ? 2.6 : (big ? 1.7 : 0.9);
+    leads(len);
+    const body = cyl(rad, rad, len, t === 'tvs' ? MAT.tvs : (t === 'zener' ? MAT.zener : MAT.diode)); alignBetween(body, mid.clone().addScaledVector(dirAB, -len/2), mid.clone().addScaledVector(dirAB, len/2)); registerGlow(body, nets[0], 0.4); g.add(body);
+    if (t !== 'tvs'){ const cathodeEnd = (t === 'diode') ? 1 : -1; const band = cyl(rad*1.08, rad*1.08, 0.5, MAT.band); band.position.copy(mid).addScaledVector(dirAB, cathodeEnd*len*0.36); band.quaternion.copy(body.quaternion); g.add(band); }
+    return g;
+  }
+  if (t === 'led'){
+    const mat = /verde/.test(part.label) ? MAT.ledG : MAT.ledR;
+    const base = cyl(2.6, 2.6, 1.0, mat, mid.x, 4.5, mid.z), body = cyl(2.3, 2.3, 4.5, mat, mid.x, 7.2, mid.z), dome = new THREE.Mesh(new THREE.SphereGeometry(2.3, 20, 12, 0, Math.PI*2, 0, Math.PI/2), mat); dome.position.set(mid.x, 9.45, mid.z);
+    [base, body, dome].forEach(m => { registerGlow(m, nets[0], 1.6); g.add(m); });
+    const l1 = tubeAlong([A, new THREE.Vector3(A.x, 4.0, A.z), new THREE.Vector3(mid.x + (A.x-mid.x)*0.5, 4.2, mid.z + (A.z-mid.z)*0.5)], 0.3, MAT.pin, 6), l2 = tubeAlong([B, new THREE.Vector3(B.x, 4.0, B.z), new THREE.Vector3(mid.x + (B.x-mid.x)*0.5, 4.2, mid.z + (B.z-mid.z)*0.5)], 0.3, MAT.pin, 6);
+    g.add(l1, l2); return g;
+  }
+  if (t === 'xtal'){
+    leads(0.1);
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(2.2, 6.5, 4, 12), MAT.xtal); body.position.copy(mid).setY(H + 2.2); body.rotation.z = Math.PI/2; body.rotation.y = Math.atan2(dirAB.x, dirAB.z) + Math.PI/2; body.castShadow = true; g.add(body); return g;
+  }
+  return g;
+}
+function buildDIP(part, holes, nets){
+  const n = holes.length, half = n/2, g = new THREE.Group();
+  const xs = holes.slice(0, half).map(h => h.x); const xmin = Math.min(...xs), xmax = Math.max(...xs);
+  const len = (xmax - xmin) + 2.2, w = 6.6, hgt = 3.6, y0 = 1.4;
+  const body = box(len, hgt, w, MAT.bodyDark, (xmin+xmax)/2, y0 + hgt/2, 0); g.add(body);
+  const notch = cyl(0.9, 0.9, 0.3, std(0x3a3d42, .7), xmin - 1.1 + 0.3, y0 + hgt + 0.01, 0, 12); g.add(notch);
+  const dot = cyl(0.45, 0.45, 0.2, std(0xe6e6e6, .7), xmin, y0 + hgt + 0.02, 2.2, 10); g.add(dot);
+  const lbl = makeLabel(part.label.split(' (')[0], len*0.92, 2.4, { size:56 }); lbl.position.set((xmin+xmax)/2, y0 + hgt + 0.03, -0.4); g.add(lbl);
+  const idl = makeLabel(part.id, len*0.5, 1.6, { color:'#9fd3ff', size:40 }); idl.position.set((xmin+xmax)/2, y0 + hgt + 0.03, 1.8); g.add(idl);
+  holes.forEach((h, i) => {
+    const pin = box(0.5, y0 + 0.4, 0.3, MAT.pin, h.x, (y0 + 0.4)/2 - 0.2, h.z); const shoulder = box(1.4, 0.3, 0.9, MAT.pin, h.x, y0 + 0.2, h.z + (h.z < 0 ? 1.0 : -1.0));
+    registerGlow(pin, nets[i], 1.0); registerGlow(shoulder, nets[i], 1.0); g.add(pin, shoulder);
+  });
+  return g;
+}
+function buildTO220(part, holes, nets, fivePin){
+  const g = new THREE.Group(); const cx = (holes[0].x + holes[holes.length-1].x)/2, cz = holes[0].z;
+  const back = cz < 0 ? -1 : 1; // cara metálica hacia el borde
+  const body = box(fivePin ? 10.4 : 10.2, 9, 4.6, MAT.to220, cx, 8.5 + 4.5 - 4.5, cz + back*2.4); body.position.y = 9.5; g.add(body);
+  const tab = box(10.2, 6.5, 1.3, MAT.tab, cx, 16.5, cz + back*4.0); g.add(tab); const holeTab = cyl(1.6, 1.6, 1.4, std(0x202020), cx, 16.5, cz + back*4.0); holeTab.rotation.x = Math.PI/2; g.add(holeTab);
+  const lbl = makeLabel(part.label.split(' (')[0], 9.5, 2.6, { size:52 }); lbl.position.set(cx, 14.01, cz + back*2.4); g.add(lbl);
+  holes.forEach((h, i) => { const pin = tubeAlong([h, new THREE.Vector3(h.x, 3.0, h.z), new THREE.Vector3(h.x, 5.0, cz + back*2.4)], 0.42, MAT.pin, 8); registerGlow(pin, nets[i], 1.0); g.add(pin); });
+  return g;
+}
+function buildSIP3(part, holes, nets){
+  const g = new THREE.Group(); const cx = holes[1].x, cz = holes[1].z; const back = cz < 0 ? -1 : 1;
+  const body = box(10.4, 11, 7.6, MAT.black, cx, 8.5, cz + back*3.0); g.add(body);
+  const lbl = makeLabel('OKI-78SR-12', 9.5, 2.4, { size:50 }); lbl.position.set(cx, 14.05, cz + back*3.0 - 1.4); g.add(lbl);
+  const lbl2 = makeLabel('BUCK 7–36V→12V', 9.5, 2.0, { size:44, color:'#9fd3ff' }); lbl2.position.set(cx, 14.06, cz + back*3.0 + 1.2); g.add(lbl2);
+  holes.forEach((h, i) => { const pin = tubeAlong([h, new THREE.Vector3(h.x, 3.0, h.z)], 0.4, MAT.pin, 4); registerGlow(pin, nets[i], 1.0); g.add(pin); });
+  return g;
+}
+function buildPot(part, holes, nets, trim){
+  const g = new THREE.Group(); const cx = holes[1].x, cz = holes[1].z; const back = cz < 0 ? -1 : 1;
+  if (trim){
+    const body = box(9.6, 10, 4.8, MAT.trimBlue, cx, 6.5, cz + back*2.6); g.add(body);
+    const screw = cyl(1.3, 1.3, 1.2, MAT.termScrew, cx - 3.2, 12.1, cz + back*2.6); g.add(screw); const slot = box(1.8, 0.3, 0.4, std(0x333)); slot.position.set(cx - 3.2, 12.7, cz + back*2.6); g.add(slot);
+    const lbl = makeLabel('RV2 10k AJUSTE 1300 RPM', 9.2, 2.2, { size:46 }); lbl.position.set(cx + 0.6, 11.55, cz + back*2.6); g.add(lbl);
+  } else {
+    const body = box(10, 6, 9.5, MAT.potBlue, cx, 4.5, cz + back*3.6); g.add(body);
+    const shaft = cyl(2.8, 2.8, 8, std(0xe8e8e8, .4, .2), cx, 11.5, cz + back*3.6); g.add(shaft); const knob = cyl(4.5, 4.5, 3.5, std(0x202020, .5), cx, 17, cz + back*3.6); g.add(knob);
+    const mark = box(0.5, 0.3, 3.5, std(0xffffff), cx, 18.8, cz + back*3.6); g.add(mark);
+    const lbl = makeLabel('RV1 100k · RPM', 9.5, 2.2, { size:46 }); lbl.position.set(cx, 7.55, cz + back*7.4); g.add(lbl);
+  }
+  holes.forEach((h, i) => { const pin = tubeAlong([h, new THREE.Vector3(h.x, 2.5, h.z), new THREE.Vector3(h.x, 3.5, cz + back*1.5)], 0.4, MAT.pin, 6); registerGlow(pin, nets[i], 1.0); g.add(pin); });
+  return g;
+}
+function buildTerminal(part, holes, nets, labels){
+  const g = new THREE.Group(); const n = holes.length; const cx = (holes[0].x + holes[n-1].x)/2, cz = holes[0].z; const back = cz < 0 ? -1 : 1;
+  const body = box(2.54*n + 1.2, 10, 7.6, MAT.term, cx, 5.2, cz + back*1.5); g.add(body);
+  holes.forEach((h, i) => {
+    const screw = cyl(1.0, 1.0, 0.6, MAT.termScrew, h.x, 10.5, cz + back*1.5); g.add(screw);
+    const slot = box(1.4, 0.2, 0.3, std(0x444), h.x, 10.85, cz + back*1.5); g.add(slot);
+    const hole = box(1.8, 2.4, 0.4, std(0x0a0a0a), h.x, 4.0, cz + back*(1.5 + 3.85)); g.add(hole);
+    const pin = tubeAlong([h, new THREE.Vector3(h.x, 1.2, h.z)], 0.45, MAT.pin, 4); registerGlow(pin, nets[i], 1.0); g.add(pin);
+    if (labels && labels[i]){ const l = makeLabel(labels[i], 2.5, 1.2, { size:40, color:'#fff' }); l.position.set(h.x, 10.22, cz + back*(1.5 - 2.6)); g.add(l); }
+  });
+  return g;
+}
+
+/* =====================================================================
+   4. VISTA 1: PROTOBOARD 830 PUNTOS (coordenadas = tabla del dossier)
+   ===================================================================== */
+const PART_OBJ = {};
+const COLZ = { A:-12.7, B:-10.16, C:-7.62, D:-5.08, E:-2.54, F:2.54, G:5.08, H:7.62, I:10.16, J:12.7, 'T-':-17.78, 'T+':-20.32, 'B-':17.78, 'B+':20.32 };
+function holePos(code){ const m = /^([A-J]|[TB][+-])(\d+)$/.exec(code); if (!m) throw new Error('hueco inválido ' + code); return new THREE.Vector3((parseInt(m[2]) - 32) * 2.54, 0, COLZ[m[1]]); }
+const TERM_LABELS = { X1:['BAT+','BAT−'], X2:['+5V','TPS','TACH','CLU'], X3:['SOL+','SOL−'] };
+function buildProtoboard(){
+  const g = G.proto;
+  // luces
+  const hemi = new THREE.HemisphereLight(0xdfe8ff, 0x3a3f4a, 0.75); g.add(hemi);
+  const sun = new THREE.DirectionalLight(0xffffff, 2.2); sun.position.set(-60, 140, 90); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -110; sun.shadow.camera.right = 110; sun.shadow.camera.top = 60; sun.shadow.camera.bottom = -60; sun.shadow.camera.near = 20; sun.shadow.camera.far = 400; sun.shadow.bias = -0.0005; g.add(sun);
+  const fill = new THREE.DirectionalLight(0x9fc5ff, 0.6); fill.position.set(80, 60, -80); g.add(fill);
+  // mesa
+  const table = new THREE.Mesh(new THREE.PlaneGeometry(600, 400), std(0x3b3f46, .9)); table.rotation.x = -Math.PI/2; table.position.y = -8.2; table.receiveShadow = true; g.add(table);
+  // tarjeta
+  const L = 63*2.54 + 10, W = 46; const board = box(L, 8, W, MAT.board, 0, -4, 0); board.receiveShadow = true; g.add(board);
+  const groove = box(L, 0.4, 1.4, std(0xd8d9d3, .9), 0, 0.01, 0); g.add(groove);
+  // huecos (instanciados)
+  const holeGeo = new THREE.BoxGeometry(1.0, 0.3, 1.0); const holes = new THREE.InstancedMesh(holeGeo, MAT.hole, 63*10 + 63*4); const mtx = new THREE.Matrix4(); let k = 0;
+  for (let r = 1; r <= 63; r++){ for (const c of ['A','B','C','D','E','F','G','H','I','J','T-','T+','B-','B+']){ const p = holePos(c + r); mtx.makeTranslation(p.x, 0.12, p.z); holes.setMatrixAt(k++, mtx); } }
+  holes.instanceMatrix.needsUpdate = true; g.add(holes);
+  // líneas de riel
+  [['T+', MAT.railRed, -1.9], ['T-', MAT.railBlue, 1.9], ['B-', MAT.railBlue, -1.9], ['B+', MAT.railRed, 1.9]].forEach(([r, m, off]) => { const z = COLZ[r] + off; g.add(box(L - 6, 0.1, 0.5, m, 0, 0.05, z)); });
+  // rotulación
+  for (let r = 1; r <= 63; r++){ if (r === 1 || r % 5 === 0){ const l1 = makeLabel(String(r), 4, 1.8, { color:'#444', size:48 }); l1.position.set(holePos('A' + r).x, 0.06, -14.9); g.add(l1); const l2 = l1.clone(); l2.position.z = 14.9; g.add(l2); } }
+  'ABCDEFGHIJ'.split('').forEach(c => { const l = makeLabel(c, 2, 2, { color:'#444', size:52 }); l.position.set(-83, 0.06, COLZ[c]); g.add(l); const l2 = l.clone(); l2.position.x = 83; g.add(l2); });
+  [['+', 'T+', '#d93636'], ['−', 'T-', '#2f63d9'], ['−', 'B-', '#2f63d9'], ['+', 'B+', '#d93636']].forEach(([t, r, c]) => { const l = makeLabel(t, 2.5, 2.5, { color:c, size:64 }); l.position.set(-84, 0.06, COLZ[r]); g.add(l); const l2 = l.clone(); l2.position.x = 84; g.add(l2); });
+  const title = makeLabel('FRENO MOTOR AUTOMÁTICO · PROTOTIPO PROTOBOARD 830 · 156 PASOS', 110, 3.2, { color:'#2a3a50', size:50 }); title.position.set(0, 0.06, -22.9); g.add(title);
+  const legend = makeLabel('T+ / B+ = 5 V   ·   T− / B− = GND   ·   12 V naranja   ·   24 V rojo grueso', 110, 2.6, { color:'#2a3a50', size:44 }); legend.position.set(0, 0.06, 22.9); g.add(legend);
+  // componentes desde la tabla única
+  PB_PARTS.forEach(p => {
+    const holesP = p.pins.map(holePos); const nets = Array.isArray(p.net) ? p.net : p.pins.map(() => p.net);
+    let obj;
+    if (/^dip/.test(p.t)) obj = buildDIP(p, holesP, nets);
+    else if (p.t === 'to220') obj = buildTO220(p, holesP, nets, false);
+    else if (p.t === 'to220_5') obj = buildTO220(p, holesP, nets, true);
+    else if (p.t === 'sip3') obj = buildSIP3(p, holesP, nets);
+    else if (p.t === 'pot') obj = buildPot(p, holesP, nets, false);
+    else if (p.t === 'trim') obj = buildPot(p, holesP, nets, true);
+    else if (p.t === 'term') obj = buildTerminal(p, holesP, nets, TERM_LABELS[p.id]);
+    else obj = buildTwoLead(p, holesP[0], holesP[1], nets);
+    const desc = `${p.t === 'wire' ? 'Cable ' + (p.color || '') : p.label}\nHuecos: ${p.pins.join(' → ')}\nRed: ${[...new Set(nets)].join(' / ')}${p.nota ? '\n' + p.nota : ''}`;
+    pickable(obj, p.id, desc); g.add(obj); PART_OBJ[p.id] = obj;
+  });
+  // etiquetas de bloque
+  [['ALIMENTACIÓN 24V→12V→5V', 13, 24.5], ['NE555 GEN. RPM (LAB)', 11.5, -24.5], ['WATCHDOG DS1232', 15.5, -24.5], ['PROFET + Q1 POTENCIA', 20, -24.5], ['LM2907 F/V', 24.5, 24.5], ['LM393 TPS/RPM', 30.5, 24.5], ['LM393 VENTANA', 38.5, 24.5], ['74HCT08 AND', 46, 24.5], ['ATmega328P CANAL B', 56.5, 24.5]].forEach(([t, row, z]) => {
+    const l = makeLabel(t, 22, 2.2, { color:'#1d6fa5', size:40 }); l.position.set((row-32)*2.54, 0.07, z); g.add(l);
+  });
+}
+
+/* =====================================================================
+   LÓGICA PASO A PASO (3D)
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+buildProtoboard();
+const markers = new THREE.Group(); G.proto.add(markers);
+let cur = 0, showAll = false, autoCam = true, showConn = true;
+const MESHES = {}; PB_PARTS.forEach(p => { const arr = []; PART_OBJ[p.id].traverse(o => { if (o.isMesh && o.material && o.material.emissive){ o.material = o.material.clone(); arr.push(o); } }); MESHES[p.id] = arr; });
+const POWER_NETS = new Set(['GND', 'V5', 'V12', 'BAT', 'V_IN', 'NC']);
+function netsOf(p){ return Array.isArray(p.net) ? p.net : p.pins.map(() => p.net); }
+function makeSprite(text, color = '#ffb020', bg = 'rgba(10,14,20,0.92)'){
+  const cv = document.createElement('canvas'); const ctx = cv.getContext('2d'); ctx.font = 'bold 40px Arial'; const w = Math.ceil(ctx.measureText(text).width) + 36; cv.width = w; cv.height = 64;
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.roundRect(0, 0, w, 64, 14); ctx.fill(); ctx.strokeStyle = color; ctx.lineWidth = 4; ctx.stroke();
+  ctx.fillStyle = color; ctx.font = 'bold 40px Arial'; ctx.textBaseline = 'middle'; ctx.fillText(text, 18, 33);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, transparent:true, depthTest:false })); sp.scale.set(w/64*3.6, 3.6, 1); sp.renderOrder = 10; return sp;
+}
+const ringGeo = new THREE.TorusGeometry(1.7, 0.35, 10, 28), ringMat = new THREE.MeshStandardMaterial({ color:0xffb020, emissive:0xffb020, emissiveIntensity:1.2, roughness:.4 });
+const beamMat = new THREE.MeshBasicMaterial({ color:0xffb020, transparent:true, opacity:.35, depthWrite:false });
+const plateMat = new THREE.MeshBasicMaterial({ color:0xffb020, transparent:true, opacity:.28, depthWrite:false, side:THREE.DoubleSide });
+function groupPlate(hole){
+  const m = /^([A-J]|[TB][+-])(\d+)$/.exec(hole); const p = holePos(hole);
+  if (m[1].length === 2){ const pl = new THREE.Mesh(new THREE.PlaneGeometry(24, 2.4), plateMat); pl.rotation.x = -Math.PI/2; pl.position.set(p.x, 0.25, p.z); return pl; }
+  const top = m[1] <= 'E'; const zc = top ? (COLZ.A + COLZ.E)/2 : (COLZ.F + COLZ.J)/2;
+  const pl = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 12.7), plateMat); pl.rotation.x = -Math.PI/2; pl.position.set(p.x, 0.25, zc); return pl;
+}
+function clearMarkers(){ while (markers.children.length){ const c = markers.children.pop(); c.traverse(o => { if (o.material && o.material.map) o.material.map.dispose(); }); } }
+let flyFrom = null, flyTo_ = null, flyT = 1, flyTgtFrom = null, flyTgtTo = null;
+function flyTo(center, size){
+  const d = Math.max(55, Math.min(120, size*1.3 + 40)); flyFrom = camera.position.clone(); flyTgtFrom = controls.target.clone();
+  flyTo_ = center.clone().add(new THREE.Vector3(-d*0.35, d*0.95, d*0.9)); flyTgtTo = center.clone(); flyT = 0;
+}
+function setStep(i, fly = true){
+  cur = Math.max(0, Math.min(PB_PARTS.length - 1, i)); const p = PB_PARTS[cur]; const nets = netsOf(p); const signalNets = new Set(nets.filter(n => !POWER_NETS.has(n)));
+  PB_PARTS.forEach((q, k) => {
+    const obj = PART_OBJ[q.id]; obj.visible = showAll || k <= cur;
+    const conn = showConn && k < cur && netsOf(q).some(n => signalNets.has(n));
+    MESHES[q.id].forEach(m => { m.userData.mode = (k === cur) ? 'cur' : (conn ? 'conn' : 'none'); if (m.userData.mode === 'none') m.material.emissive.setScalar(0); if (m.userData.mode === 'conn') m.material.emissive.setHex(0x00b7ff).multiplyScalar(0.55); });
+  });
+  clearMarkers();
+  const pts = p.pins.map(holePos); const center = pts.reduce((a, b) => a.add(b), new THREE.Vector3()).multiplyScalar(1/pts.length); center.y = 4;
+  let size = 0; pts.forEach(a => pts.forEach(b => size = Math.max(size, a.distanceTo(b))));
+  p.pins.forEach((h, idx) => {
+    const pos = holePos(h); const ring = new THREE.Mesh(ringGeo, ringMat); ring.rotation.x = Math.PI/2; ring.position.set(pos.x, 0.5, pos.z); markers.add(ring);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 16, 8), beamMat); beam.position.set(pos.x, 8.5, pos.z); markers.add(beam);
+    const name = (p.pinNames && p.pinNames[idx]) || ('pin ' + (idx + 1)); const sp = makeSprite(`${h}  ·  ${name}`); sp.position.set(pos.x, 18 + (idx % 2) * 4.2, pos.z); markers.add(sp);
+    markers.add(groupPlate(h));
+  });
+  const title = makeSprite(`PASO ${cur + 1}: ${p.id} ${p.label.split(' (')[0]}`, '#ff5a00'); title.position.set(center.x, 27, center.z); title.scale.multiplyScalar(1.15); markers.add(title);
+  if (fly && autoCam) flyTo(center, size);
+  // HUD
+  const rows = pinRows(p).map(r => `<tr><td><span class="hole">${r.hole}</span></td><td>${r.name}</td><td class="net">${r.net}</td><td>${holeGroup(r.hole)}</td></tr>`).join('');
+  const connList = showConn ? PB_PARTS.filter((q, k) => k < cur && netsOf(q).some(n => signalNets.has(n))).map(q => q.id) : [];
+  $('card').innerHTML = `<div class="t">Paso ${cur + 1} de ${PB_PARTS.length} · ${p.id}</div><div class="sub">Fase ${p.fase} · ${TIPO[p.t] || p.t}</div><div class="ins">${stepText(p)}</div>${p.nota ? '<div class="warn">⚠ ' + p.nota + '</div>' : ''}<table><tr><th>Hueco</th><th>Pata / pin</th><th>Red</th><th>Huecos unidos</th></tr>${rows}</table>${connList.length ? '<div class="sub" style="margin-top:6px">Se conecta eléctricamente (por fila o riel) con piezas ya colocadas: <span class="net">' + connList.join(', ') + '</span></div>' : ''}`;
+  $('counter').textContent = `Paso ${cur + 1} / ${PB_PARTS.length}`; $('progI').style.width = ((cur + 1) / PB_PARTS.length * 100) + '%';
+  [...$('list').children].forEach(e => { if (e.classList.contains('it')){ const k = +e.dataset.i; e.classList.toggle('cur', k === cur); e.classList.toggle('done', k < cur); } });
+  const it = $('list').querySelector('.it.cur'); if (it) it.scrollIntoView({ block:'nearest' });
+  $('bSch').href = 'diagrama_conexion_tradicional.html#paso=' + (cur + 1); history.replaceState(null, '', '#paso=' + (cur + 1));
+}
+// lista lateral
+let ph = null; const list = $('list'); PB_PARTS.forEach((p, i) => { if (p.fase !== ph){ ph = p.fase; const h = document.createElement('div'); h.className = 'ph'; h.textContent = 'Fase ' + ph; list.appendChild(h); } const d = document.createElement('div'); d.className = 'it'; d.dataset.i = i; d.dataset.k = (p.id + ' ' + p.label + ' ' + p.pins.join(' ') + ' ' + (p.color || '')).toLowerCase(); d.innerHTML = `<span class="n">${i + 1}</span><b>${p.id}</b> ${p.label.split(' (')[0]}<br><span>${p.pins.join(' → ')}</span>`; d.addEventListener('click', () => setStep(i)); list.appendChild(d); });
+$('search').addEventListener('input', e => { const q = e.target.value.toLowerCase().trim(); [...list.children].forEach(el => { if (el.classList.contains('it')) el.style.display = (!q || el.dataset.k.includes(q)) ? '' : 'none'; }); });
+$('bPrev').addEventListener('click', () => setStep(cur - 1)); $('bNext').addEventListener('click', () => setStep(cur + 1)); $('bFirst').addEventListener('click', () => setStep(0)); $('bLast').addEventListener('click', () => setStep(PB_PARTS.length - 1));
+$('bCam').addEventListener('click', e => { autoCam = !autoCam; e.target.textContent = '🎥 Auto-cámara: ' + (autoCam ? 'ON' : 'OFF'); e.target.classList.toggle('on', !autoCam); });
+$('bAll').addEventListener('click', e => { showAll = !showAll; e.target.classList.toggle('on', showAll); setStep(cur, false); });
+$('bConn').addEventListener('click', e => { showConn = !showConn; e.target.textContent = '🔗 Resaltar piezas conectadas: ' + (showConn ? 'ON' : 'OFF'); e.target.classList.toggle('on', !showConn); setStep(cur, false); });
+$('bPanels').addEventListener('click', () => document.body.classList.toggle('hidepanel'));
+window.addEventListener('keydown', e => { if (e.key === 'ArrowRight' || e.key === 'PageDown'){ setStep(cur + 1); e.preventDefault(); } if (e.key === 'ArrowLeft' || e.key === 'PageUp'){ setStep(cur - 1); e.preventDefault(); } if (e.key === 'Home') setStep(0); if (e.key === 'End') setStep(PB_PARTS.length - 1); });
+// tooltip
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(); const tip = $('tooltip'); let pickAcc = 0;
+canvas.addEventListener('pointermove', e => { mouse.set((e.clientX/window.innerWidth)*2 - 1, -(e.clientY/window.innerHeight)*2 + 1); tip.style.left = (e.clientX + 14) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; });
+canvas.addEventListener('click', () => { ray.setFromCamera(mouse, camera); const hit = ray.intersectObjects(pickables.filter(o => o.visible), false)[0]; if (hit){ const i = PB_PARTS.findIndex(p => p.id === hit.object.userData.pick.name); if (i >= 0) setStep(i); } });
+function doPick(){ ray.setFromCamera(mouse, camera); const hit = ray.intersectObjects(pickables.filter(o => o.visible), false)[0]; if (hit){ const p = hit.object.userData.pick; tip.innerHTML = `<b>${p.name}</b><div class="m">${p.desc}</div>`; tip.style.display = 'block'; } else tip.style.display = 'none'; }
+window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+// arranque
+scene.background = new THREE.Color(0x1b1f26); camera.position.set(0, 150, 180); controls.target.set(0, 0, 0); controls.minDistance = 10; controls.maxDistance = 600; controls.update();
+const m = /paso=(\d+)/.exec(location.hash); setStep(m ? +m[1] - 1 : 0);
+let last = performance.now();
+function loop(now){
+  requestAnimationFrame(loop); const dt = Math.min(0.1, (now - last)/1000); last = now; const t = now/1000;
+  const pulse = 0.45 + 0.45*Math.sin(t*6); const cp = PB_PARTS[cur];
+  MESHES[cp.id].forEach(mm => mm.material.emissive.setHex(0xff5a00).multiplyScalar(pulse));
+  ringMat.emissiveIntensity = 0.6 + 0.8*pulse; markers.children.forEach(c => { if (c.isSprite) c.position.y += 0; });
+  if (flyT < 1){ flyT = Math.min(1, flyT + dt/0.8); const e = 1 - Math.pow(1 - flyT, 3); camera.position.lerpVectors(flyFrom, flyTo_, e); controls.target.lerpVectors(flyTgtFrom, flyTgtTo, e); }
+  pickAcc += dt; if (pickAcc > 0.1){ pickAcc = 0; doPick(); }
+  controls.update(); renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

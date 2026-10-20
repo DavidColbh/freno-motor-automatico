@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Freno de Motor Automático</title>
+<meta name="description" content="Avances del sistema automático de activación de freno de motor para camiones: simulador 3D, diagramas de conexión y documentación técnica.">
+<style>
+:root{--bg:#f4f6f9;--card:#ffffff;--txt:#14202e;--mut:#5b6b7c;--line:#d9e0e8;--acc:#d9480f;--acc2:#0b6fb8}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1218;--card:#161d26;--txt:#e6eef7;--mut:#93a4b6;--line:#2a3542;--acc:#ff7a33;--acc2:#4fb3ff}}
+:root[data-theme="dark"]{--bg:#0d1218;--card:#161d26;--txt:#e6eef7;--mut:#93a4b6;--line:#2a3542;--acc:#ff7a33;--acc2:#4fb3ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:"Segoe UI",Roboto,Arial,sans-serif;line-height:1.5}
+main{max-width:920px;margin:0 auto;padding:40px 16px 56px}
+h1{font-size:28px;margin:0 0 6px} .lead{color:var(--mut);margin:0 0 28px;max-width:680px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+a.card{display:block;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s}
+a.card:hover{border-color:var(--acc);transform:translateY(-2px)}
+.card .k{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--acc2);font-weight:700}
+.card h2{font-size:18px;margin:6px 0 6px} .card p{margin:0;color:var(--mut);font-size:14px}
+.logic{margin-top:28px;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:10px;padding:14px 16px;font-size:14px}
+footer{margin-top:32px;color:var(--mut);font-size:13px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Freno de Motor Automático para camiones</h1>
+  <p class="lead">Sistema que activa el freno de motor sin depender del conductor, para evitar el recalentamiento de los frenos de servicio en descensos de montaña.</p>
+  <div class="grid">
+    <a class="card" href="freno_motor_simulador_3d.html"><div class="k">Simulador</div><h2>Simulador 3D en tiempo real</h2><p>Protoboard, placa PCB y camión en descenso con sonido, fallas y señales animadas.</p></a>
+    <a class="card" href="diagrama_conexion_tradicional.html"><div class="k">Esquemático</div><h2>Diagrama de conexión tradicional</h2><p>Cinco hojas de esquemático con modo paso a paso de los 156 pasos de armado.</p></a>
+    <a class="card" href="diagrama_conexion_3d_paso_a_paso.html"><div class="k">Armado</div><h2>Diagrama de conexión 3D</h2><p>La protoboard se arma pieza por pieza con cada hueco y pin señalado.</p></a>
+    <a class="card" href="Freno_Motor_Automatico_Documentacion.md"><div class="k">Documentación</div><h2>Dossier técnico</h2><p>Arquitectura, cálculos, lista de materiales, mapa de pines, protoboard y PCB.</p></a>
+  </div>
+  <div class="logic"><b>Lógica de activación:</b> RPM ≥ 1300, acelerador suelto (TPS &lt; 1.35 V con histéresis de 0.10 V) y embrague suelto, con detección de cables rotos o en corto.</div>
+  <footer>Comunidad premium de IA de Cursos en Grupo — cursossengrupo.com</footer>
+</main>
+</body>
+</html>
